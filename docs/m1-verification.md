@@ -255,12 +255,17 @@ error: could not compile `serde` (build script) due to 1 previous error
 
 This contradicts the task `context.json` claim that `cargo build`/`clippy` are runnable here; they
 are not, because the MSVC toolchain's linker is absent. Per the project **honesty rule**, these two
-checks are reported as **BLOCKED / pending**, NOT as passed. Resolving them requires either
-installing the VS 2022 C++ Build Tools + Windows SDK (so the pinned `x86_64-pc-windows-msvc` target
-can link) or running them on a GitHub `windows-latest` CI runner (which has MSVC preinstalled —
-this is the same environment task 1.6's `build-installer` job targets). Switching to a GNU/mingw
-toolchain was deliberately NOT done: it would change the project's pinned build target and the
-sidecar triple, an out-of-scope architecture change.
+checks are reported as **PENDING (not run)**, NOT as passed.
+
+**Decision (user):** task 1.2 is accepted as **complete with this documented host caveat**. The end
+goal is option A — the user installs **VS 2022 C++ Build Tools + Windows SDK** locally so the pinned
+`x86_64-pc-windows-msvc` target can link — but the run is not blocked on that install. Until then,
+local `cargo build` / `cargo clippy` stay pending and are also exercised on the GitHub
+`windows-latest` CI runner (MSVC preinstalled — the environment task 1.6's `build-installer` job
+targets). Switching to a GNU/mingw toolchain (option C) was explicitly rejected: it would change the
+project's pinned build target and the sidecar triple. **At the converge step, once MSVC is
+installed, `cargo build` / `cargo clippy` / `pnpm tauri build` must be re-run locally to clear this
+caveat.**
 
 ### done-criterion mapping (tasks.md 1.2 "`tauri dev` opens a window")
 
@@ -269,6 +274,12 @@ sidecar triple, an out-of-scope architecture change.
   (`binaries/texora-engine`) + `targets ["msi","nsis"]` intact; crate dependency graph resolves and
   `Cargo.lock` is pinned; `cargo fmt --check` clean.
 - **Pending MANUAL confirmation:** the interactive `tauri dev` WINDOW actually opening — NOT run,
-  NOT claimed. It depends on a successful `cargo build`, which is blocked on this host (see above).
-- **Blocked on this host (needs MSVC linker / CI):** `cargo clippy --all-targets -- -D warnings`
-  and `cargo build`.
+  NOT claimed. It depends on a successful `cargo build`, which is pending on this host (see above).
+- **Pending (needs local MSVC linker, or CI windows-latest):** `cargo clippy --all-targets -- -D
+  warnings` and `cargo build`. To be cleared at converge once VS 2022 Build Tools + Windows SDK are
+  installed (option A), and exercised authoritatively by the task-1.6 CI `build-installer` job.
+
+**Outcome:** task 1.2 is **complete with the documented host caveat above** — every check runnable
+on this host (frontend lint/test/strict-TS build, icons, `cargo fmt --check`, dependency
+resolution/lockfile) is real and green; the MSVC-linker-dependent checks and the interactive window
+are honestly recorded as pending, never reported as passed.
