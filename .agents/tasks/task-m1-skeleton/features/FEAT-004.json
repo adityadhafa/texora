@@ -1,0 +1,26 @@
+{
+  "id": "FEAT-004",
+  "type": "ci",
+  "description": "GitHub Actions CI building the Windows installer (tasks.md 1.6). On windows-latest: run engine lint+pytest and frontend lint+vitest as checks, build the PyInstaller engine freeze, build the Tauri .msi/.exe, and upload the installer artifact. Depends on FEAT-002 (engine checks + freeze script) and FEAT-003 (frontend checks + Tauri build). This is the last feature.",
+  "status": "pending",
+  "steps": [
+    "Create .github/workflows/ci.yml with three jobs on windows-latest, action versions pinned: (1) engine-checks: actions/setup-python@v5 Python 3.11 -> install engine dev deps -> `ruff check .` + `black --check .` + `mypy texora_engine` + `pytest -q`. (2) frontend-checks: actions/setup-node@v4 + corepack pnpm -> `pnpm install` -> `pnpm --filter desktop lint` + `pnpm --filter desktop test -- --run`. (3) build-installer (needs the two check jobs): setup Python 3.11 + Node/pnpm + dtolnay/rust-toolchain@stable -> run scripts/build-engine freeze -> `pnpm --filter desktop tauri build` -> actions/upload-artifact@v4 the .msi/.exe from apps/desktop/src-tauri/target/release/bundle/.",
+    "Pin all action versions and tool versions (Python 3.11, Node version, pnpm version) in the workflow so CI is reproducible.",
+    "Validate the workflow YAML locally (node-based YAML parse, or `pnpm dlx @action-validator/cli` if chosen) — expect valid syntax.",
+    "Record in findings that the end-to-end 'artifact installs and launches' done-check (tasks.md 1.6) is NOT verifiable on this local host and can only be confirmed by a real CI run or manual install — do NOT fake a green CI.",
+    "Commit locally (e.g. 'ci: windows installer build + engine/frontend checks'). Do not push."
+  ],
+  "acceptance_criteria": [
+    ".github/workflows/ci.yml exists with engine-checks, frontend-checks, and a build-installer job that uploads the Windows installer artifact, all on windows-latest with pinned action/tool versions.",
+    "The workflow YAML parses as valid locally.",
+    "The build-installer job wires the PyInstaller freeze before `pnpm --filter desktop tauri build` and uploads from the Tauri bundle output path.",
+    "findings explicitly flag the full 'artifact installs and launches' check as CI/manual-only, not faked."
+  ],
+  "verification": [
+    "Parse .github/workflows/ci.yml with a YAML parser locally and confirm it is valid.",
+    "Review the job graph: build-installer `needs` the two check jobs; it runs scripts/build-engine then the Tauri build then upload-artifact.",
+    "Confirm findings note the host limitation for the end-to-end installer check."
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

@@ -1,0 +1,32 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Tauri v2 app (tasks.md 1.2) + sidecar supervisor and secure IPC with a typed TS engine client (tasks.md 1.4). Scaffold Tauri 2.12.x + React 18 + strict TypeScript + Vite + Tailwind in apps/desktop with a blank Home screen and dark/light theme tokens. Add a Rust supervisor that generates a 256-bit token, picks a free loopback port, spawns the engine (dev: python -m texora_engine; prod: externalBin), health-checks /healthz, and restarts with exponential backoff. A single typed TS engine client wraps all invoke/events; Home shows live engine status. Depends on FEAT-001 (scaffold) and FEAT-002 (the engine it spawns + the externalBin name/location it wires).",
+  "status": "pending",
+  "steps": [
+    "Scaffold apps/desktop: package.json (pinned React 18.3.1 + react-dom, TypeScript 5.6.x, Vite 7.x + @vitejs/plugin-react 4.x, Tailwind 3.4.x + postcss + autoprefixer, vitest 2.x + @testing-library/react + jsdom, ESLint 9 flat + typescript-eslint 8 + Prettier 3, @tauri-apps/cli 2.12.x, @tauri-apps/api 2.x; scripts dev/build/lint/test/tauri).",
+    "Create tsconfig.json + tsconfig.node.json with strict:true (no implicit any); vite.config.ts (React plugin, fixed port, clearScreen:false for Tauri); index.html; src/main.tsx; src/App.tsx (blank Home); tailwind.config with darkMode:'class'; postcss.config.js; src/index.css with @tailwind directives; src/styles/theme.css with dark/light tokens; eslint.config.js (flat) + .prettierrc.",
+    "Create src-tauri: Cargo.toml (crate name `texora-desktop` — MUST differ from the sidecar name; tauri + tauri-build 2.12), tauri.conf.json (product name, window, bundle.externalBin ['binaries/texora-engine'], bundle targets msi+nsis on Windows), build.rs, src/main.rs, src/lib.rs (minimal entrypoint), capabilities/*.json (v2 permissions for the commands/events used), binaries/.gitkeep.",
+    "Implement src-tauri/src/supervisor.rs: generate a 256-bit token (rand), pick a free loopback port (bind 127.0.0.1:0 and read it back), spawn the engine (dev: `python -m texora_engine --host 127.0.0.1 --port <p> --token <t>`; prod: resolve the externalBin sidecar via Tauri's shell/process API), health-check /healthz over loopback, restart with exponential backoff on crash, and broadcast status via a Tauri event (e.g. engine://status). Expose a #[tauri::command] engine_status(). Add Cargo deps rand, tokio, serde, and an HTTP client (reqwest or ureq) — pin versions.",
+    "Create the SINGLE typed client src/lib/engineClient.ts: wraps invoke('engine_status') and subscribes to the engine://status event; exports a typed EngineStatus. No component may call invoke/fetch directly.",
+    "Wire src/App.tsx + src/components/EngineStatusBadge.tsx to render live engine status obtained ONLY through engineClient.ts.",
+    "Add tests: src/App.test.tsx (renders Home) and src/lib/engineClient.test.ts (mock @tauri-apps/api) for vitest; Rust unit tests in supervisor.rs for free-port selection and backoff schedule.",
+    "Run frontend checks: `pnpm --filter desktop lint`, `pnpm --filter desktop test -- --run`, `pnpm --filter desktop build` (strict tsc + vite build) — all pass. If the Rust toolchain is available, also run `cargo fmt --check`, `cargo clippy`, `cargo test` in src-tauri; otherwise flag these as host-limited (rustc/cargo are NOT installed on this host) and do NOT fake them.",
+    "Do NOT run `pnpm tauri dev` in automation. The 'window opens' done-check (1.2) is verified by a successful build (`pnpm --filter desktop tauri build`, or at minimum `cargo build` in src-tauri when Rust is present); flag the actual window-open and the live-status-badge end-to-end as manual/host checks if Rust is absent.",
+    "Add every new JS and Rust dependency to docs/LICENSES.md in this same change. Commit locally (e.g. 'feat(desktop): Tauri shell + sidecar supervisor + typed engine client'). Do not push."
+  ],
+  "acceptance_criteria": [
+    "`pnpm --filter desktop lint` is clean, `pnpm --filter desktop test -- --run` passes (App + engineClient tests), `pnpm --filter desktop build` compiles under strict TS.",
+    "The Cargo crate is named texora-desktop and the externalBin is wired as binaries/texora-engine (names deliberately distinct so Tauri does not reject the sidecar).",
+    "A single typed engine client (src/lib/engineClient.ts) is the only place invoke/events are called; the Home screen's status comes solely through it.",
+    "The supervisor generates token + free loopback port, spawns the engine, health-checks /healthz, and restarts with backoff (covered by Rust unit tests where the toolchain is available; otherwise authored correctly and flagged host-limited).",
+    "Every added JS/Rust dependency has a docs/LICENSES.md row."
+  ],
+  "verification": [
+    "Frontend: `pnpm --filter desktop lint && pnpm --filter desktop test -- --run && pnpm --filter desktop build` — expect clean/pass/compile.",
+    "Rust (if toolchain present): `cargo fmt --check && cargo clippy && cargo test` in apps/desktop/src-tauri — expect clean/pass; `pnpm --filter desktop tauri build` produces a bundle. If rustc/cargo absent, record host-limited in findings and do not fake.",
+    "Confirm no component imports @tauri-apps/api invoke/event directly except src/lib/engineClient.ts (grep)."
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

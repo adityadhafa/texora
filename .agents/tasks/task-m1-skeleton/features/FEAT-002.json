@@ -1,0 +1,33 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Python 3.11 engine skeleton (tasks.md 1.3) + PyInstaller freeze (tasks.md 1.5). A REAL FastAPI + Uvicorn + Pydantic-v2 sidecar: GET /healthz (open, 200), bearer-token auth on every non-health route (401 missing/wrong, 200 correct), loopback bind to an arg-provided port, structured rotating-file logging, a CLI entrypoint accepting --host/--port/--token. Then a scripts/ build that freezes it with PyInstaller into the Tauri externalBin sidecar named texora-engine-<TARGET_TRIPLE>[.exe]. NO OCR logic. Depends on FEAT-001 (the engine/ tree and LICENSES table must exist). The freeze step depends only on the engine code within this feature.",
+  "status": "pending",
+  "steps": [
+    "Provision a Python 3.11 interpreter and create a venv at engine/.venv (prefer `py -3.11 -m venv .venv`, else `uv python install 3.11` + `uv venv`). If 3.11 cannot be provisioned on this host, record it in findings and proceed on the available interpreter for the pytest/lint checks, flagging the 3.11-specific freeze as host-limited.",
+    "Create engine/pyproject.toml (project metadata, requires-python >=3.11,<3.12, ruff+black+mypy+pytest config, [project.optional-dependencies].dev) and engine/requirements.txt (pinned runtime: fastapi, uvicorn[standard], pydantic>=2.13, pydantic-settings) + engine/requirements-dev.txt (pinned: pytest, pytest-asyncio, httpx, ruff, black, mypy, pyinstaller + pyinstaller-hooks-contrib). Pin exact versions verified against PyPI.",
+    "Create engine/texora_engine/__init__.py, settings.py (Settings(BaseSettings): host, port, token, log_dir, log_level), logging_config.py (RotatingFileHandler + console, structured formatter, no bare print), security.py (require_token FastAPI dependency reading Authorization: Bearer, constant-time compare, 401 on missing/mismatch).",
+    "Create engine/texora_engine/app.py (create_app(settings)->FastAPI mounting open /healthz and an auth-protected router, wiring logging at startup) and engine/texora_engine/api/{__init__.py,routes.py} (healthz route + a trivial protected GET /engine/info guarded by require_token).",
+    "Create engine/texora_engine/__main__.py: argparse CLI (--host default 127.0.0.1, --port required, --token; token also from env TEXORA_ENGINE_TOKEN) that calls uvicorn.run on create_app bound to loopback.",
+    "Create engine/tests/{__init__.py,conftest.py,test_health_and_auth.py}: TestClient fixture with a known token; tests assert /healthz->200 no auth, protected route ->401 without token, ->401 with wrong token, ->200 with correct token.",
+    "Run engine checks in the venv: `ruff check .`, `black --check .`, `mypy texora_engine`, `pytest -q` — all must pass.",
+    "Create scripts/build_engine.py (cross-platform driver) + a thin scripts/build-engine.ps1/.sh wrapper: resolve the target triple from `rustc -Vv` host: line, with a --triple override arg (default to x86_64-pc-windows-msvc when rustc is absent, and record that it was hard-provided); run PyInstaller --onefile --name texora-engine against engine/texora_engine/__main__.py with needed hidden-imports/collect-submodules for uvicorn; copy/rename output to apps/desktop/src-tauri/binaries/texora-engine-<TRIPLE>[.exe]. Create engine/texora-engine.spec only if hidden imports require it.",
+    "Smoke-test the frozen binary ONE-SHOT: launch `texora-engine-<triple>[.exe] --host 127.0.0.1 --port <p> --token <t>` in the background, `curl http://127.0.0.1:<p>/healthz` expecting 200, then stop it. If PyInstaller cannot run against 3.11 here, flag host-limited and prove the mechanism on the available interpreter.",
+    "Ensure every new dependency has a row in docs/LICENSES.md (update in this same change). Commit locally (e.g. 'feat(engine): FastAPI sidecar skeleton + PyInstaller freeze'). Do not push."
+  ],
+  "acceptance_criteria": [
+    "`cd engine && ruff check . && black --check . && mypy texora_engine && pytest -q` all pass in the venv.",
+    "The auth tests prove: /healthz 200 without a token; protected route 401 without/with-wrong token and 200 with the correct token.",
+    "The engine binds 127.0.0.1 only and reads its port+token from CLI args/env (no hardcoded port/token).",
+    "scripts/build-engine produces apps/desktop/src-tauri/binaries/texora-engine-<TARGET_TRIPLE>[.exe], and that binary serves /healthz with 200 in a one-shot smoke (or the limitation is flagged with the mechanism proven on the available interpreter).",
+    "Every engine/PyInstaller dependency has a row in docs/LICENSES.md.",
+    "No OCR/ML logic and no mocked OCR anywhere."
+  ],
+  "verification": [
+    "Engine lint+type+test: `cd engine && ruff check . && black --check . && mypy texora_engine && pytest -q` — expect all green.",
+    "Freeze + smoke: run scripts/build-engine, confirm the suffixed binary exists, launch it one-shot and curl /healthz for 200, then stop it.",
+    "Grep docs/LICENSES.md to confirm fastapi, uvicorn, pydantic, pydantic-settings, httpx, pytest, pytest-asyncio, ruff, black, mypy, pyinstaller rows are present."
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

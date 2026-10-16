@@ -1,0 +1,7 @@
+{
+  "task_id": "task-m1-skeleton",
+  "task_description": "Texora Milestone M1 — the runnable skeleton: monorepo scaffold, Python FastAPI engine sidecar (healthz + bearer auth + rotating logs), PyInstaller freeze, Tauri v2 + React/TS/Vite/Tailwind app with a Rust sidecar supervisor and typed TS engine client, GitHub Actions CI building the Windows installer, and a seeded docs/LICENSES.md. Skeleton only: NO ML models, NO OCR logic. Pin all versions; verify APIs against official docs. Implements tasks 1.1-1.7 of .kiro/specs/texora/tasks.md.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}
