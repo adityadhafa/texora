@@ -59,7 +59,7 @@ update the row.
 | @vitejs/plugin-react     | 4.x     | npm       | MIT                | Yes          | Yes          | React plugin for Vite. Dev-only. |
 | tailwindcss              | 3.4.x   | npm       | MIT                | Yes          | Yes          | Utility CSS. |
 | typescript               | 5.6.x   | npm       | Apache-2.0         | Yes          | Yes          | TypeScript compiler. Dev-only. |
-| vitest                   | 2.x     | npm       | MIT                | Yes          | Yes          | Unit test runner. Dev-only. |
+| vitest                   | 3.2.7   | npm       | MIT                | Yes          | Yes          | Unit test runner. Dev-only. Pinned to 3.2.7 (vite 7 is a supported peer; vitest 2.x only supported vite ≤6 and produced a config type mismatch). |
 | @testing-library/react   | 16.x    | npm       | MIT                | Yes          | Yes          | React test utilities. Dev-only. |
 | jsdom                    | 25.x    | npm       | MIT                | Yes          | Yes          | DOM for vitest. Dev-only. |
 | eslint                   | 9.x     | npm       | MIT                | Yes          | Yes          | Linter. Dev-only. |
@@ -71,8 +71,8 @@ update the row.
 
 | Dependency  | Version | Ecosystem | License            | Personal use | Redistribute | Notes |
 |-------------|---------|-----------|--------------------|--------------|--------------|-------|
-| tauri       | 2.12.x  | crates.io | Apache-2.0 OR MIT  | Yes          | Yes          | Desktop shell runtime. |
-| tauri-build | 2.12.x  | crates.io | Apache-2.0 OR MIT  | Yes          | Yes          | Tauri build script dep. |
+| tauri       | 2.12.4  | crates.io | Apache-2.0 OR MIT  | Yes          | Yes          | Desktop shell runtime. Latest stable 2.x crate (the npm `@tauri-apps/cli` is 2.12.0; the Rust crate versions independently). |
+| tauri-build | 2.7.3   | crates.io | Apache-2.0 OR MIT  | Yes          | Yes          | Tauri build script dep. Latest stable 2.x crate paired with tauri 2.12.4. |
 | tokio       | 1.x     | crates.io | MIT                | Yes          | Yes          | Async runtime for the supervisor. |
 | serde       | 1.x     | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Serialization for commands/events. |
 | serde_json  | 1.x     | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | JSON (status payloads). |

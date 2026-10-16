@@ -1,0 +1,7 @@
+{
+  "task_id": "task-m1-continue",
+  "task_description": "Continue Texora M1 (skeleton) in the worktree .worktrees/m1-skeleton: finish + verify task 1.2 (Tauri v2 app), implement task 1.4 (sidecar supervisor + secure IPC + typed client + live status), implement task 1.6 (CI Windows installer), then converge/finalize. Tasks 1.1/1.3/1.5/1.7 are already done and verified; do NOT redo them. Do NOT merge into main.",
+  "status": "pending",
+  "feature_order": ["FEAT-M1C-002", "FEAT-M1C-004", "FEAT-M1C-006"],
+  "blocked_reason": null
+}

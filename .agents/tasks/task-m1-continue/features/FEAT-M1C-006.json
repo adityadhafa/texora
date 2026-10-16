@@ -1,0 +1,29 @@
+{
+  "id": "FEAT-M1C-006",
+  "type": "ci",
+  "description": "Task 1.6 — GitHub Actions CI that builds the Windows installer. .github/workflows/ci.yml on windows-latest with three jobs: engine-checks (ruff/black --check/mypy/pytest on Python 3.11.9), frontend-checks (pnpm install + lint + test + build with pnpm 9.15.9 and Node 24.x), and build-installer (needs the two checks: freeze the engine via scripts/build_engine.py, then `pnpm --filter desktop tauri build`, then upload the .msi/.exe artifact). All action and tool versions pinned. Depends on FEAT-M1C-004 and the already-done freeze (1.5). done: (tasks.md 1.6) 'CI artifact installs and launches' — the end-to-end install+launch only runs on a real GitHub runner; state that limitation explicitly, do NOT claim it passed.",
+  "status": "pending",
+  "steps": [
+    "Read context.json and m1-continue-plan.md (Item 3) FIRST. Apply the PATH export. cwd = worktree root.",
+    "Create .github/workflows/ci.yml on windows-latest with pinned action versions: engine-checks uses actions/checkout and actions/setup-python (Python 3.11.9), installs engine/requirements.txt + engine/requirements-dev.txt, then runs `ruff check .`, `black --check . --line-length 100`, `mypy texora_engine`, `pytest -q` from the engine/ directory.",
+    "Add frontend-checks: actions/checkout + actions/setup-node (Node 24.x) + pnpm/action-setup with version 9.15.9, then `pnpm install`, `pnpm --filter desktop lint`, `pnpm --filter desktop test -- --run`, `pnpm --filter desktop build`.",
+    "Add build-installer with `needs: [engine-checks, frontend-checks]`: setup Python 3.11.9 + Node/pnpm + dtolnay/rust-toolchain@stable (+ optional Swatinem/rust-cache pinned), `pnpm install`, `python scripts/build_engine.py` (freeze the sidecar into apps/desktop/src-tauri/binaries/texora-engine-x86_64-pc-windows-msvc.exe), `pnpm --filter desktop tauri build`, then actions/upload-artifact the .msi/.exe from apps/desktop/src-tauri/target/release/bundle/{msi,nsis}/.",
+    "Pin EVERY action to a fixed major/tag and pin all tool versions (Python 3.11.9, Node 24.x, Rust stable, pnpm 9.15.9) per PROGRESS.md. Keep the YAML valid.",
+    "Validate the YAML locally and confirm every script/command path the workflow references exists in the repo (scripts/build_engine.py, engine/requirements*.txt, the root `pnpm --filter desktop` scripts, the Tauri bundle output path).",
+    "Append docs/m1-verification.md §1.6 with the local YAML-validation result AND an explicit statement that the 'CI artifact installs and launches' done-criterion is only verifiable on a real GitHub Windows runner / manual install — do NOT fake a green CI. No new dependency rows are needed (GitHub Actions require no LICENSES.md row; note that).",
+    "Set this FEAT status to completed, record findings, and commit locally e.g. `ci: windows installer build + engine/frontend checks (task 1.6)`. Do NOT push/merge."
+  ],
+  "acceptance_criteria": [
+    ".github/workflows/ci.yml exists with engine-checks, frontend-checks, and a build-installer job (needs the two checks) that freezes the engine, runs `pnpm --filter desktop tauri build`, and uploads the Windows installer artifact — all on windows-latest with pinned action/tool versions.",
+    "The workflow YAML parses as valid locally and every script/command path it references exists in the repo.",
+    "docs/m1-verification.md §1.6 records the local YAML validation and explicitly flags the end-to-end install+launch as CI/manual-only (not faked).",
+    "Committed locally on feat/m1-skeleton; nothing pushed or merged."
+  ],
+  "verification": [
+    "Parse .github/workflows/ci.yml with a YAML parser locally (e.g. `pnpm dlx js-yaml .github/workflows/ci.yml` or a node yaml.parse one-liner) and confirm valid.",
+    "Confirm the referenced paths exist: scripts/build_engine.py, engine/requirements.txt, engine/requirements-dev.txt, and the root package.json `tauri`/`--filter desktop` scripts.",
+    "Confirm docs/m1-verification.md §1.6 contains the explicit host/CI limitation note."
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
