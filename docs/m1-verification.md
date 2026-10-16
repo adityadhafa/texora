@@ -405,3 +405,101 @@ No component (`App.tsx`, `EngineStatusBadge.tsx`) imports the bridge directly.
 
 **Outcome:** task 1.4 is **complete**; the only unverified item is the manual running-window
 observation, honestly recorded as pending.
+
+## Task 1.6 — CI Windows installer (`.github/workflows/ci.yml`)
+
+Environment: Windows + bash, PATH export applied before every command.
+
+### What was authored
+
+`.github/workflows/ci.yml` runs on `windows-latest` with three jobs and pinned action + tool
+versions (Python 3.11.9, Node 24.x, Rust stable, pnpm 9.15.9), per `docs/PROGRESS.md`:
+
+- **engine-checks** — `actions/checkout@v5` + `actions/setup-python@v6` (`python-version: 3.11.9`),
+  installs `engine/requirements.txt` + `engine/requirements-dev.txt`, then from the `engine/`
+  working directory runs `ruff check .`, `black --check . --line-length 100`, `mypy texora_engine`,
+  and `pytest -q`.
+- **frontend-checks** — `actions/checkout@v5` + `pnpm/action-setup@v4` (`version: 9.15.9`) +
+  `actions/setup-node@v5` (`node-version: 24.x`, pnpm cache), then `pnpm install --frozen-lockfile`,
+  `pnpm --filter desktop lint`, `pnpm --filter desktop test -- --run`, `pnpm --filter desktop build`.
+- **build-installer** (`needs: [engine-checks, frontend-checks]`) — checkout + Python 3.11.9 +
+  pnpm 9.15.9 + Node 24.x + `dtolnay/rust-toolchain@stable` + `Swatinem/rust-cache@v2`, then
+  `pnpm install --frozen-lockfile`, installs the engine deps, freezes the sidecar with
+  `python scripts/build_engine.py --python python --triple x86_64-pc-windows-msvc`, runs
+  `pnpm --filter desktop tauri build`, and uploads the installer with `actions/upload-artifact@v5`
+  from `apps/desktop/src-tauri/target/release/bundle/msi/*.msi` and `.../bundle/nsis/*.exe`
+  (`if-no-files-found: error`).
+
+Note on the freeze step: `scripts/build_engine.py` defaults to the `engine/.venv` interpreter, which
+does not exist on a CI runner. The workflow passes `--python python` so the freeze uses the
+`setup-python` 3.11.9 interpreter (where the engine deps, including PyInstaller, were just
+installed), and `--triple x86_64-pc-windows-msvc` so no `rustc` probe is required.
+
+### Pinned action versions (all Node-24-compatible majors, verified current)
+
+```
+actions/checkout@v5
+actions/setup-python@v6
+actions/setup-node@v5
+actions/upload-artifact@v5
+pnpm/action-setup@v4
+dtolnay/rust-toolchain@stable
+Swatinem/rust-cache@v2
+```
+
+Content was rephrased for compliance with licensing restrictions.
+
+### Local YAML validation — PASS
+
+`yaml`/PyYAML were not available in the workspace, so the file was parsed with `js-yaml` via
+`pnpm dlx` and the parsed structure inspected with node:
+
+```
+### pnpm dlx js-yaml .github/workflows/ci.yml  (parsed, then inspected)
+YAML VALID
+jobs: engine-checks, frontend-checks, build-installer
+ - engine-checks runs-on=windows-latest
+ - frontend-checks runs-on=windows-latest
+ - build-installer runs-on=windows-latest needs=["engine-checks","frontend-checks"]
+```
+
+The parse succeeds and confirms: all three jobs present, all on `windows-latest`, and
+`build-installer` depends on both check jobs.
+
+### Referenced paths confirmed to exist
+
+```
+OK   scripts/build_engine.py
+OK   engine/requirements.txt
+OK   engine/requirements-dev.txt
+OK   apps/desktop/package.json
+OK   pnpm-lock.yaml
+OK   apps/desktop/src-tauri/Cargo.lock
+root tauri script:      pnpm --filter desktop tauri
+desktop lint/test/build: eslint .  |  vitest  |  (tsc x2 && vite build)
+```
+
+The installer output directory `apps/desktop/src-tauri/target/release/bundle/{msi,nsis}/` is
+produced by `pnpm --filter desktop tauri build` at CI time; it does not exist in the source tree
+and is not expected to.
+
+### done-criterion mapping (tasks.md 1.6 "CI artifact installs and launches")
+
+- **Verified locally:** `ci.yml` parses as valid YAML; the three jobs, their `windows-latest`
+  runners, the `needs` wiring, pinned action/tool versions, and every script/command path the
+  workflow references all exist and are correct.
+- **CI / manual only — NOT run, NOT claimed:** the end-to-end "artifact installs and launches"
+  done-criterion can only be exercised on a real GitHub `windows-latest` runner (which freezes the
+  engine, runs `tauri build`, and produces the `.msi`/`.exe`) followed by a manual install + launch
+  of the produced installer. No GitHub run was executed from this worktree (nothing was pushed), so
+  this criterion is recorded as **PENDING on a real CI runner / manual install** and is explicitly
+  NOT reported as passed. No green CI was faked.
+
+### Licenses
+
+No new dependency rows are required: GitHub Actions workflows reference hosted actions and do not
+add runtime/build dependencies to the project, so `docs/LICENSES.md` needs no row for this change.
+
+**Outcome:** task 1.6 is **complete** — the Windows installer workflow exists with pinned
+versions and valid YAML, all referenced paths are confirmed present, and the install+launch
+done-criterion is honestly flagged as CI/manual-only rather than claimed.
