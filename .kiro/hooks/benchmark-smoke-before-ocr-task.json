@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Benchmark smoke before completing an OCR task",
+      "trigger": "PreTaskExec",
+      "description": "Before any spec task goes in-progress, remind the agent to run the benchmark smoke test for OCR-affecting work and block completion on regressions.",
+      "action": {
+        "type": "agent",
+        "prompt": "This task may touch the OCR pipeline (ingest, layout, recognizers, ensemble, or export). Before marking it complete, run the benchmark smoke test (`python -m benchmarks.smoke` or the project's documented smoke command) on the small sample set and confirm metrics did not regress versus the recorded baseline. If this task does not touch OCR behavior, note that and skip. Never mark an OCR-affecting task done on a non-zero smoke result or a regression without flagging it."
+      }
+    }
+  ]
+}

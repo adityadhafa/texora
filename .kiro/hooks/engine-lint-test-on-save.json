@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Engine: lint + unit tests on save",
+      "trigger": "PostFileSave",
+      "description": "On saving a Python engine file, run ruff, black --check, and the pytest suite to keep the engine green.",
+      "matcher": "engine/.*\\.py$",
+      "action": {
+        "type": "command",
+        "command": "cd engine && ruff check . && black --check . && pytest -q",
+        "timeout": 300
+      }
+    }
+  ]
+}

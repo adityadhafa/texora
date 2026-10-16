@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Frontend: lint + unit tests on save",
+      "trigger": "PostFileSave",
+      "description": "On saving a TS/TSX file in the desktop app, run ESLint and vitest in single-run mode.",
+      "matcher": "apps/desktop/.*\\.(ts|tsx)$",
+      "action": {
+        "type": "command",
+        "command": "cd apps/desktop && pnpm lint && pnpm test -- --run",
+        "timeout": 300
+      }
+    }
+  ]
+}
