@@ -1,0 +1,6 @@
+# Texora engine — pinned runtime dependencies (Python 3.11).
+# Licenses recorded in docs/LICENSES.md.
+fastapi==0.143.2
+uvicorn[standard]==0.54.0
+pydantic==2.14.1
+pydantic-settings==2.16.0
