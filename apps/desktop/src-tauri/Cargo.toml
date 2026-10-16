@@ -1,0 +1,30 @@
+[package]
+name = "texora-desktop"
+version = "0.1.0"
+description = "Texora desktop shell (Tauri v2)."
+authors = ["Texora"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.77.2"
+
+# The crate name `texora-desktop` is intentionally distinct from the sidecar
+# base name `texora-engine` so Tauri does not reject a sidecar/package
+# name collision.
+[lib]
+name = "texora_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.12", features = [] }
+
+[dependencies]
+tauri = { version = "2.12", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
