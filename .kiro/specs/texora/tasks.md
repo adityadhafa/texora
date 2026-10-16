@@ -10,23 +10,23 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 ## M1 — Skeleton (runnable: app launches, talks to sidecar, CI builds Windows installer)
 
-- [ ] **1.1 Monorepo scaffold** — create `apps/desktop`, `engine`, `benchmarks`, `docs`, `scripts`,
+- [x] **1.1 Monorepo scaffold** — create `apps/desktop`, `engine`, `benchmarks`, `docs`, `scripts`,
   root tooling (pnpm workspace, `.editorconfig`, `.gitignore`, LICENSE, README stub).
   `req: structure` · `done:` repo builds frontend + engine lint with no errors.
 - [x] **1.2 Tauri v2 app** — scaffold Tauri 2.12.x + React + TS + Vite + Tailwind; blank Home
   screen; dark/light theme tokens. `dep:1.1` · `req: R-UI-7` · `done:` `tauri dev` opens a window.
-- [ ] **1.3 Python engine skeleton** — FastAPI app, `GET /healthz`, Pydantic settings, structured
+- [x] **1.3 Python engine skeleton** — FastAPI app, `GET /healthz`, Pydantic settings, structured
   rotating logging, loopback bind + bearer-token middleware. `dep:1.1` · `req: R-INST-5, R-SEC-2,
   R-QA-4` · `done:` `pytest` hits `/healthz` (200) and rejects missing token (401).
 - [x] **1.4 Sidecar supervisor + secure IPC** — Rust side generates token + free loopback port,
   spawns engine as `externalBin`, health-checks, restarts with backoff; typed TS client.
   `dep:1.2,1.3` · `req: R-INST-5/6, R-SEC-2` · `done:` UI shows live engine status from `/healthz`.
-- [ ] **1.5 PyInstaller freeze** — build self-contained engine binary per platform; wire
+- [x] **1.5 PyInstaller freeze** — build self-contained engine binary per platform; wire
   `externalBin` naming (`-$TARGET_TRIPLE`). `dep:1.3` · `req: R-INST-1` · `done:` frozen binary runs
   standalone and serves `/healthz`.
 - [x] **1.6 CI: Windows installer** — GitHub Actions builds engine freeze + Tauri `.msi/.exe`;
   uploads artifact. `dep:1.4,1.5` · `req: R-INST-1` · `done:` CI artifact installs and launches.
-- [ ] **1.7 docs/LICENSES.md bootstrap** — seed license table for every pinned dep. `dep:1.1` ·
+- [x] **1.7 docs/LICENSES.md bootstrap** — seed license table for every pinned dep. `dep:1.1` ·
   `req: R-LIC-1` · `done:` file lists each dependency + license + verdict.
 
 ## M2 — Single-image formula OCR (snip tool, one strong model)
