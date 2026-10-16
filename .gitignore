@@ -30,6 +30,7 @@ build/
 *.spec.bak
 engine/build/
 engine/dist/
+engine/.build/
 
 # Logs
 *.log
