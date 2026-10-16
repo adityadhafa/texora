@@ -66,6 +66,9 @@ update the row.
 | typescript-eslint        | 8.x     | npm       | MIT                | Yes          | Yes          | TS ESLint tooling (parser + plugin). Dev-only. |
 | prettier                 | 3.x     | npm       | MIT                | Yes          | Yes          | Formatter. Dev-only. |
 | pnpm                     | 9.15.9  | npm       | MIT                | Yes          | Yes          | Package manager, pinned via `packageManager`. |
+| @tauri-apps/plugin-shell | 2.5.0   | npm       | Apache-2.0 OR MIT  | Yes          | Yes          | JS side of the Tauri shell plugin, paired with the Rust `tauri-plugin-shell`. |
+| i18next                  | 26.4.7  | npm       | MIT                | Yes          | Yes          | Internationalization core (`id` default + `en`). |
+| react-i18next            | 17.0.20 | npm       | MIT                | Yes          | Yes          | React bindings for i18next (`useTranslation`). |
 
 ## Shell / frontend (`apps/desktop/src-tauri`) — Rust crates
 
@@ -73,15 +76,12 @@ update the row.
 |-------------|---------|-----------|--------------------|--------------|--------------|-------|
 | tauri       | 2.12.4  | crates.io | Apache-2.0 OR MIT  | Yes          | Yes          | Desktop shell runtime. Latest stable 2.x crate (the npm `@tauri-apps/cli` is 2.12.0; the Rust crate versions independently). |
 | tauri-build | 2.7.3   | crates.io | Apache-2.0 OR MIT  | Yes          | Yes          | Tauri build script dep. Latest stable 2.x crate paired with tauri 2.12.4. |
-| tokio       | 1.x     | crates.io | MIT                | Yes          | Yes          | Async runtime for the supervisor. |
+| tokio       | 1.53.3  | crates.io | MIT                | Yes          | Yes          | Async runtime for the supervisor (spawn/health-check/backoff loop). |
 | serde       | 1.x     | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Serialization for commands/events. |
 | serde_json  | 1.x     | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | JSON (status payloads). |
-| rand        | 0.8.x   | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | 256-bit session token generation. |
-| reqwest     | 0.12.x  | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Health-check client (candidate; `ureq` is the alternative — only one ships). |
-| ureq        | 2.x     | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Lightweight blocking HTTP client (alternative to `reqwest`). |
-
-> `reqwest` and `ureq` are listed as candidates for the supervisor health-check (FEAT-004);
-> exactly one is adopted and the other row is removed when the Cargo manifest is finalized.
+| rand        | 0.8.8   | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | 256-bit session token generation (`rand::rngs::OsRng`). |
+| ureq        | 2.12.1  | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Lightweight blocking HTTP client for the supervisor `/healthz` probe (chosen over `reqwest`: no async TLS stack needed for loopback HTTP). |
+| tauri-plugin-shell | 2.5.0 | crates.io | MIT OR Apache-2.0 | Yes       | Yes          | Official Tauri sidecar/process spawn (handles externalBin `-$TARGET_TRIPLE` resolution). |
 
 ## Deferred / opt-in only
 

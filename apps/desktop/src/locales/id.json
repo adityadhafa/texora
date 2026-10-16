@@ -1,0 +1,20 @@
+{
+  "app": {
+    "tagline": "OCR luring untuk dokumen matematika dan ilmiah."
+  },
+  "theme": {
+    "toggle": "Ubah tema",
+    "dark": "Gelap",
+    "light": "Terang"
+  },
+  "engine": {
+    "label": "Mesin",
+    "state": {
+      "starting": "Memulai",
+      "healthy": "Siap",
+      "unhealthy": "Bermasalah",
+      "restarting": "Memulai ulang",
+      "stopped": "Berhenti"
+    }
+  }
+}

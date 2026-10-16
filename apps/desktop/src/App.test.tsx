@@ -1,10 +1,25 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import App from './App';
+import './i18n';
+
+// App renders the live engine status badge, which calls the typed client.
+// Mock the Tauri bridge so the component mounts without a running backend.
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn().mockResolvedValue({ state: 'starting' }),
+}));
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn().mockResolvedValue(() => {}),
+}));
 
 afterEach(() => {
   cleanup();
   document.documentElement.classList.remove('dark');
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
 });
 
 describe('App', () => {
@@ -15,7 +30,8 @@ describe('App', () => {
 
   it('toggles the theme class on the document root', () => {
     render(<App />);
-    const toggle = screen.getByRole('button', { name: /toggle color theme/i });
+    // Default language is Indonesian ("Ubah tema"); match the i18n label.
+    const toggle = screen.getByRole('button', { name: /ubah tema/i });
     const wasDark = document.documentElement.classList.contains('dark');
 
     fireEvent.click(toggle);

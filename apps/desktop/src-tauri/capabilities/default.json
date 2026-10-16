@@ -1,7 +1,26 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capability for the Texora main window. Minimal for the M1 skeleton; engine IPC permissions are added in task 1.4.",
+  "description": "Default capability for the Texora main window. Grants core defaults (invoke + event listen for the engine_status command and engine://status events) and a shell execute scope limited to the engine sidecar.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "binaries/texora-engine",
+          "sidecar": true,
+          "args": [
+            "--host",
+            "127.0.0.1",
+            "--port",
+            { "validator": "\\d+" },
+            "--token",
+            { "validator": "[0-9a-f]+" }
+          ]
+        }
+      ]
+    }
+  ]
 }

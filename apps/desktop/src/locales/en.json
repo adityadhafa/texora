@@ -1,0 +1,20 @@
+{
+  "app": {
+    "tagline": "Offline-first OCR for mathematical and scientific documents."
+  },
+  "theme": {
+    "toggle": "Toggle color theme",
+    "dark": "Dark",
+    "light": "Light"
+  },
+  "engine": {
+    "label": "Engine",
+    "state": {
+      "starting": "Starting",
+      "healthy": "Ready",
+      "unhealthy": "Unhealthy",
+      "restarting": "Restarting",
+      "stopped": "Stopped"
+    }
+  }
+}
