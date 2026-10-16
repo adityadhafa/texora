@@ -53,18 +53,27 @@ update the row.
 |--------------------------|---------|-----------|--------------------|--------------|--------------|-------|
 | react                    | 18.3.1  | npm       | MIT                | Yes          | Yes          | UI runtime. |
 | react-dom                | 18.3.1  | npm       | MIT                | Yes          | Yes          | React DOM renderer. |
-| @tauri-apps/api          | 2.x     | npm       | Apache-2.0 OR MIT  | Yes          | Yes          | Typed JS bridge to Tauri commands/events. |
-| @tauri-apps/cli          | 2.12.x  | npm       | Apache-2.0 OR MIT  | Yes          | Yes          | Tauri CLI, invoked as `pnpm tauri`. Dev-only. |
-| vite                     | 7.x     | npm       | MIT                | Yes          | Yes          | Dev server + bundler. Dev-only. |
-| @vitejs/plugin-react     | 4.x     | npm       | MIT                | Yes          | Yes          | React plugin for Vite. Dev-only. |
-| tailwindcss              | 3.4.x   | npm       | MIT                | Yes          | Yes          | Utility CSS. |
-| typescript               | 5.6.x   | npm       | Apache-2.0         | Yes          | Yes          | TypeScript compiler. Dev-only. |
+| @types/react             | 18.3.12 | npm       | MIT                | Yes          | Yes          | React type definitions. Dev-only. |
+| @types/react-dom         | 18.3.1  | npm       | MIT                | Yes          | Yes          | React DOM type definitions. Dev-only. |
+| @types/node              | 22.12.0 | npm       | MIT                | Yes          | Yes          | Node type definitions for `tsconfig.node.json`. Dev-only. |
+| @tauri-apps/api          | 2.9.0   | npm       | Apache-2.0 OR MIT  | Yes          | Yes          | Typed JS bridge to Tauri commands/events. |
+| @tauri-apps/cli          | 2.12.0  | npm       | Apache-2.0 OR MIT  | Yes          | Yes          | Tauri CLI, invoked as `pnpm tauri`. Dev-only. |
+| vite                     | 7.0.0   | npm       | MIT                | Yes          | Yes          | Dev server + bundler. Dev-only. |
+| @vitejs/plugin-react     | 4.7.0   | npm       | MIT                | Yes          | Yes          | React plugin for Vite. Dev-only. |
+| tailwindcss              | 3.4.17  | npm       | MIT                | Yes          | Yes          | Utility CSS. |
+| typescript               | 5.6.3   | npm       | Apache-2.0         | Yes          | Yes          | TypeScript compiler. Dev-only. |
 | vitest                   | 3.2.7   | npm       | MIT                | Yes          | Yes          | Unit test runner. Dev-only. Pinned to 3.2.7 (vite 7 is a supported peer; vitest 2.x only supported vite ≤6 and produced a config type mismatch). |
-| @testing-library/react   | 16.x    | npm       | MIT                | Yes          | Yes          | React test utilities. Dev-only. |
-| jsdom                    | 25.x    | npm       | MIT                | Yes          | Yes          | DOM for vitest. Dev-only. |
-| eslint                   | 9.x     | npm       | MIT                | Yes          | Yes          | Linter. Dev-only. |
-| typescript-eslint        | 8.x     | npm       | MIT                | Yes          | Yes          | TS ESLint tooling (parser + plugin). Dev-only. |
-| prettier                 | 3.x     | npm       | MIT                | Yes          | Yes          | Formatter. Dev-only. |
+| @testing-library/react   | 16.3.0  | npm       | MIT                | Yes          | Yes          | React test utilities. Dev-only. |
+| jsdom                    | 25.0.1  | npm       | MIT                | Yes          | Yes          | DOM for vitest. Dev-only. |
+| eslint                   | 9.17.0  | npm       | MIT                | Yes          | Yes          | Linter. Dev-only. |
+| @eslint/js               | 9.17.0  | npm       | MIT                | Yes          | Yes          | ESLint JS recommended config. Dev-only. |
+| typescript-eslint        | 8.18.1  | npm       | MIT                | Yes          | Yes          | TS ESLint tooling (parser + plugin). Dev-only. |
+| eslint-plugin-react-hooks   | 5.1.0  | npm    | MIT                | Yes          | Yes          | React Hooks lint rules. Dev-only. |
+| eslint-plugin-react-refresh | 0.4.16 | npm    | MIT                | Yes          | Yes          | Fast-refresh lint rules for Vite. Dev-only. |
+| globals                  | 15.14.0 | npm       | MIT                | Yes          | Yes          | Global identifier sets for ESLint flat config. Dev-only. |
+| prettier                 | 3.4.2   | npm       | MIT                | Yes          | Yes          | Formatter. Dev-only. |
+| postcss                  | 8.4.49  | npm       | MIT                | Yes          | Yes          | CSS transform pipeline (Tailwind). Dev-only. |
+| autoprefixer             | 10.4.20 | npm       | MIT                | Yes          | Yes          | PostCSS vendor-prefixing plugin. Dev-only. |
 | pnpm                     | 9.15.9  | npm       | MIT                | Yes          | Yes          | Package manager, pinned via `packageManager`. |
 | @tauri-apps/plugin-shell | 2.5.0   | npm       | Apache-2.0 OR MIT  | Yes          | Yes          | JS side of the Tauri shell plugin, paired with the Rust `tauri-plugin-shell`. |
 | i18next                  | 26.4.7  | npm       | MIT                | Yes          | Yes          | Internationalization core (`id` default + `en`). |
