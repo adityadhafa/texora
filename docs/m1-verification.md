@@ -189,8 +189,7 @@ Minimal fixes applied to make the above pass (the WIP had never been built):
    unknown property on vite 7's config (`TS2769`). vitest 3.2.x lists `vite ^5 || ^6 || ^7` as a
    dependency and reuses the project's vite 7, resolving the type mismatch. vitest 3.2.7 is MIT and
    the `test` config shape we use (`globals`, `environment: 'jsdom'`, `include`) is unchanged v2→v3.
-   Verified against vitest docs (vite is now a peer/compatible dependency). Content was rephrased
-   for compliance with licensing restrictions.
+   Verified against vitest docs (vite is now a peer/compatible dependency).
 2. **CSS `@import` ordering** (`apps/desktop/src/index.css`). `@import './styles/theme.css'` sat
    after the `@tailwind` directives; CSS requires `@import` to precede other statements, which
    emitted a PostCSS warning during `vite build`. Moved the import to the top of the file. Behavior
@@ -446,8 +445,6 @@ pnpm/action-setup@v4
 dtolnay/rust-toolchain@stable
 Swatinem/rust-cache@v2
 ```
-
-Content was rephrased for compliance with licensing restrictions.
 
 ### Local YAML validation — PASS
 
