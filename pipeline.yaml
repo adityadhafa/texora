@@ -1,0 +1,20 @@
+# Texora default pipeline configuration.
+#
+# This file wires each pipeline stage to a concrete engine id. The UI never depends on a
+# specific engine; adapters are registered in the pipeline factory and selected here.
+#
+# NOTE: stage defaults are intentionally left unset in M1. The chosen engines per stage are
+# set by the M7 benchmarks (see docs/BENCHMARKS.md when it exists). Until then this file is a
+# placeholder documenting the stage keys the pipeline will read.
+#
+# Permissive-first policy (see docs/LICENSES.md): copyleft / non-commercial engines
+# (e.g. Surya, PyMuPDF) are opt-in only and must never be a shipped default here.
+
+# version: 1
+
+# stages:
+#   ingest:    # pdf/image loading + preprocessing   (engine id set by M7 benchmarks)
+#   layout:    # layout detection + reading order     (engine id set by M7 benchmarks)
+#   recognize: # text / formula / table / handwriting (engine id set by M7 benchmarks)
+#   ensemble:  # voting, verification, LaTeX validate (engine id set by M7 benchmarks)
+#   export:    # tex / md / docx / html / mathml / pdf (engine id set by M7 benchmarks)

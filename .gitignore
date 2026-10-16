@@ -1,0 +1,40 @@
+# Node / pnpm
+node_modules/
+dist/
+.pnpm-store/
+*.tsbuildinfo
+
+# Vite / build output
+apps/desktop/dist/
+
+# Rust / Tauri
+target/
+apps/desktop/src-tauri/target/
+
+# Frozen engine sidecars (produced by scripts/build-engine, never committed)
+apps/desktop/src-tauri/binaries/*
+!apps/desktop/src-tauri/binaries/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# PyInstaller build/dist artifacts
+build/
+*.spec.bak
+engine/build/
+engine/dist/
+
+# Logs
+*.log
+logs/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db

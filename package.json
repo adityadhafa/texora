@@ -1,0 +1,17 @@
+{
+  "name": "texora",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline-first desktop OCR for mathematical and scientific documents.",
+  "license": "MIT",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "lint": "pnpm --filter desktop lint",
+    "test": "pnpm --filter desktop test -- --run",
+    "build": "pnpm --filter desktop build",
+    "tauri": "pnpm --filter desktop tauri"
+  }
+}
