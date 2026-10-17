@@ -31,12 +31,20 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 ## M2 — Single-image formula OCR (snip tool, one strong model)
 
-- [ ] **2.1 Model registry + downloader** — `MODEL` table, pinned versions + SHA-256, progress,
+- [x] **2.1 Model registry + downloader** — `MODEL` table, pinned versions + SHA-256, progress,
   offline-bundle import. `dep:1.3` · `req: R-INST-2/3/4` · `done:` download verifies checksum;
   corrupt file rejected (test with bad hash).
-- [ ] **2.2 FormulaRecognizer adapter + default engine** — Protocol + PP-FormulaNet-S (or
+- [x] **2.2 FormulaRecognizer adapter + default engine** — Protocol + PP-FormulaNet-S (or
   benchmark-chosen permissive model) adapter; CPU path first. `dep:2.1` · `req: R-REC-2, R-HW-2` ·
   `done:` real image → LaTeX unit test on a fixture (no mocks in production path, R-REC-8).
+  <!-- M2 FLAG (spec erratum, design §B.3): the shipped M2 default is **pix2tex (LaTeX-OCR)**,
+  not PP-FormulaNet-S, on packaging/pinnability grounds (PaddlePaddle Windows-CPU/PyInstaller
+  risk; PaddleX-hub weights harder to pin to one stable URL+SHA-256). PP-FormulaNet-S and
+  UniMERNet remain M7 (7.2) benchmark candidates and can retake the default via a one-line
+  pipeline.yaml change. Flagged here, not silently rewritten. -->
+  <!-- R-REC-6 "render check (KaTeX)" erratum (design §B.6): the engine does a
+  KaTeX-supported-macro allow-list + structural check; the authoritative real-KaTeX render
+  lives in the UI/vitest. Intent (never present un-renderable LaTeX as confident) is met. -->
 - [ ] **2.3 LaTeX normalize + validate** — `pylatexenc`/custom AST + KaTeX render check.
   `dep:2.2` · `req: R-REC-6/7` · `done:` invalid LaTeX flagged, valid passes, golden tests.
 - [ ] **2.4 `POST /recognize/snip`** — image → `{latex, confidence, mathml, asciimath}`. `dep:2.2,
