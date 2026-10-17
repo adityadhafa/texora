@@ -33,3 +33,46 @@ class Settings(BaseSettings):
         description="Directory for rotating log files.",
     )
     log_level: str = Field(default="INFO", description="Root log level for the engine.")
+
+    # --- Storage (M2) ---
+    db_path: Path = Field(
+        default=Path("texora.db"),
+        description="SQLite database file (WAL) for the MODEL and SETTING tables.",
+    )
+    models_dir: Path = Field(
+        default=Path("models"),
+        description="Root directory where downloaded model weights are stored.",
+    )
+
+    # --- Hardware (M2) ---
+    device: str = Field(
+        default="cpu",
+        description="Execution device for recognition: cpu|cuda|mps.",
+    )
+
+    # --- Snip recognition guards (M2) ---
+    max_snip_bytes: int = Field(
+        default=8 * 1024 * 1024,
+        ge=1,
+        description="Maximum decoded base64 image size in bytes before rejecting a snip (422).",
+    )
+    max_snip_pixels: int = Field(
+        default=8_000_000,
+        ge=1,
+        description="Maximum decoded image area (width*height) — decompression-bomb guard (422).",
+    )
+    max_snip_edge: int = Field(
+        default=5000,
+        ge=1,
+        description="Maximum decoded image edge length in pixels — decompression-bomb guard (422).",
+    )
+    snip_timeout_s: float = Field(
+        default=30.0,
+        gt=0,
+        description="Per-snip recognition timeout in seconds; a timeout returns status=failed.",
+    )
+    snip_concurrency: int = Field(
+        default=1,
+        ge=1,
+        description="Worker pool size for snip inference. 1 serializes the shared torch model.",
+    )
