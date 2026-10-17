@@ -103,6 +103,9 @@ update the row.
 | autoprefixer             | 10.4.20 | npm       | MIT                | Yes          | Yes          | PostCSS vendor-prefixing plugin. Dev-only. |
 | pnpm                     | 9.15.9  | npm       | MIT                | Yes          | Yes          | Package manager, pinned via `packageManager`. |
 | @tauri-apps/plugin-shell | 2.5.0   | npm       | Apache-2.0 OR MIT  | Yes          | Yes          | JS side of the Tauri shell plugin, paired with the Rust `tauri-plugin-shell`. |
+| @tauri-apps/plugin-global-shortcut | 2.3.0 | npm | Apache-2.0 OR MIT | Yes      | Yes          | JS side of the global-shortcut plugin (Ctrl+Shift+M snip hotkey), paired with the Rust `tauri-plugin-global-shortcut`. |
+| katex                    | 0.16.11 | npm       | MIT                | Yes          | Yes          | Math render in the snip popup (authoritative KaTeX render) + the generator input for the engine's supported-macro allow-list. |
+| @types/katex             | 0.16.7  | npm       | MIT                | Yes          | Yes          | KaTeX type definitions for strict TS. Dev-only. |
 | i18next                  | 26.4.7  | npm       | MIT                | Yes          | Yes          | Internationalization core (`id` default + `en`). |
 | react-i18next            | 17.0.20 | npm       | MIT                | Yes          | Yes          | React bindings for i18next (`useTranslation`). |
 
