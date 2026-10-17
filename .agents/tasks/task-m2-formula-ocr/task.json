@@ -1,0 +1,7 @@
+{
+  "task_id": "task-m2-formula-ocr",
+  "task_description": "Implement Texora Milestone M2 (single-image formula OCR): model registry + checksum-verified downloader, a pix2tex FormulaRecognizer adapter running REAL CPU inference, LaTeX normalize/validate + MathML, token-protected POST /recognize/snip, GET/POST /hardware, the JS->engine Rust proxy transport (HIGH-1 seam), and the Snip Tool UI (hotkey + capture + popup) with i18n. Faithful to the APPROVED v4 design at .agents/tasks/m2-design.md; no mocked OCR in production paths.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005"],
+  "blocked_reason": null
+}

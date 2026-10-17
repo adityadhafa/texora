@@ -1,0 +1,29 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "severity": "NIT",
+      "scope": "resolution-4-model-progress",
+      "where": "§B.2b subscribeModelProgress; §B.11 subscribeModelProgress wrapper",
+      "problem": "The client-side terminal set that closes the first-run progress UI is described prose-only ('closes on a terminal state') rather than naming the three terminal literals (ready/corrupt/error) at the UI layer the way the supervisor stop condition does. Non-blocking because ModelDownloadState is a shared enum and the supervisor stop condition already enumerates the terminal set.",
+      "fix": "In §B.11 state that the progress UI treats ready|corrupt|error as terminal (same set as the supervisor stop condition) and renders the final state, then closes/offers retry."
+    }
+  ],
+  "resolutions": {
+    "1_default_model_pin_on_first_fetch": "REFLECTED",
+    "2_confidence_contract_both_ways": "REFLECTED",
+    "3_katex_allowlist_generator_input": "REFLECTED",
+    "4_model_progress_contract": "REFLECTED"
+  },
+  "nits_applied": {
+    "pipeline_yaml_full_replacement_and_permissive_comment": true,
+    "factory_adapter_declared_model_ids": true,
+    "pillow_decode_errors_422_not_500": true
+  },
+  "errata_flagged_not_applied": {
+    "tasks_md_2_2_ppformulanet_default": true,
+    "r_rec_6_render_check_katex_wording": true
+  },
+  "counts": { "high": 0, "medium": 0, "nit": 1 },
+  "reviewDoc": "c:\\data\\kucing\\texora\\.worktrees\\m2-formula-ocr/.agents/tasks/m2-design-review.md"
+}

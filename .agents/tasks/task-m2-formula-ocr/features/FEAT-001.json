@@ -1,0 +1,33 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Engine foundation for M2 task 2.1: pin + install the new engine runtime deps (promote httpx to runtime; add pix2tex/torch-cpu/pillow/pylatexenc/latex2mathml), add the SQLite db/ layer (MODEL + SETTING tables, WAL) used only through db/, and the checksum-verified model registry + streaming downloader + offline-bundle import with the pin-on-first-fetch SHA-256 story for pix2tex weights. Satisfies task 2.1 done: corrupt (bad-hash) file is REJECTED; offline bundle imports with zero network. Design: m2-design.md §B.2, §B.3, §B.5, §B.2b.",
+  "status": "pending",
+  "steps": [
+    "Read .agents/tasks/context.json and this file FIRST, then m2-design.md §B.2/§B.3/§B.5/§B.2b and tasks.md §M2 2.1.",
+    "Pin + install engine deps (design §B.2). Verify each exact version exists on PyPI before pinning; nearest patch in the same minor if unavailable, and record the real version. Move httpx==0.28.1 from engine/requirements-dev.txt into engine/requirements.txt; add pix2tex==0.1.4, torch==2.3.1+cpu (PyTorch CPU wheel index — document the index-url used), pillow==10.4.0, pylatexenc==2.10, latex2mathml==3.77.0. Mirror into engine/pyproject.toml ([project].dependencies; move httpx out of the dev extra). Install into engine/.venv.",
+    "Add docs/LICENSES.md rows in the SAME change: move httpx from the dev/test table to the runtime table (BSD-3-Clause, Yes/Yes); add pix2tex (MIT, Yes/Yes), torch CPU (BSD-3-Clause, Yes/Yes), pillow (HPND, Yes/Yes), pylatexenc (MIT), latex2mathml (MIT) — with the real installed versions.",
+    "Extend engine/texora_engine/settings.py with db_path, models_dir, device (default 'cpu').",
+    "Create the db/ layer (design §B.5, structure.md: SQLite only through db/): db/schema.py opens WAL and creates MODEL + SETTING tables with a tiny migration guard; db/models_dao.py and db/settings_dao.py expose typed get/upsert helpers; db/__init__.py exports them. No raw SQL outside db/.",
+    "Create models/registry.py: Pydantic ModelSpec (id, version, files: list[ModelFile], license, target_dir) + ModelFile (name, url, sha256, size) + ModelSpec.file_path(name). Create models/catalog.py with the single pinned pix2tex spec.",
+    "ADOPTION (NEVER invent a hash): confirm against the pinned pix2tex release the exact PyPI version, the exact GitHub release tag, each asset's exact filename and its direct non-redirecting immutable per-tag URL; fetch each asset once, compute its real SHA-256, bake the real values into catalog.py. If the real shape differs from the design assumption (weights.pth/image_resizer.pth at tag v0.0.1), use the real filenames/URLs and update ModelFile + file_path lookups. Record version/tag/URLs/SHA-256 and the pin-on-first-fetch honesty caveat in docs/m2-verification.md AND the pix2tex model row in docs/LICENSES.md.",
+    "Create models/progress.py (design §B.2b): ModelDownloadState StrEnum (downloading/verifying/ready/corrupt/error), ModelFileProgress, ModelProgress (id, state, bytes_received, bytes_total, files, detail).",
+    "Create models/downloader.py: stream each file via httpx.stream('GET', url) to <target_dir>/.incoming/<name>.part, hashing with hashlib.sha256 while writing, with connect/read timeout + max-size guard, emitting ModelProgress. On completion compare to the pinned sha256: mismatch -> delete part, raise ChecksumMismatch, mark row corrupt, allow retry; match -> atomic os.replace into place, mark ready.",
+    "Create models/store.py: persist MODEL rows via db/; require_ready(id) returns the ready spec or raises typed ModelNotReady.",
+    "Create models/bundle.py: offline import from a local dir/zip with NO network, verifying each file against the same pinned SHA-256 via the shared verify routine before promoting; raise BundleIncomplete (missing) / ChecksumMismatch.",
+    "Write engine tests under engine/tests/ (no mocked OCR; a local fake HTTP server + bad-hash/bundle fixtures are allowed — they test download/verify logic, not OCR): test_db.py, test_registry.py, test_downloader.py (accept + BAD-HASH reject = task 2.1 done/AC-1), test_bundle.py (zero-network import AC-2 with networking stubbed to fail + missing-file + bad-hash rejection).",
+    "Run the engine gate and record output in docs/m2-verification.md (new file mirroring docs/m1-verification.md). Commit locally (conventional-commit), NEVER push. Set this FEAT status to completed and note in findings the confirmed pix2tex version/tag/asset filenames/SHA-256 and where weights land, so FEAT-002 can resolve them."
+  ],
+  "acceptance_criteria": [
+    "engine/.venv/Scripts/python.exe -c \"import pix2tex, torch, PIL, pylatexenc, latex2mathml, httpx\" succeeds with the pinned versions installed.",
+    "A download whose bytes do not match the pinned SHA-256 is rejected: the .part is deleted, the MODEL row is not ready (corrupt), ChecksumMismatch is raised, retry is possible (test_downloader.py passes — task 2.1 done/AC-1).",
+    "A valid offline bundle import promotes a model to ready with ZERO network calls, verifying the pinned checksum first (test_bundle.py passes — AC-2).",
+    "The MODEL + SETTING tables are created in WAL mode and accessed only through db/ (test_db.py passes).",
+    "docs/LICENSES.md has a row for every new dep and the pix2tex model (with the pin-on-first-fetch caveat) in the same change (AC-9)."
+  ],
+  "verification": [
+    "From engine/ with the venv python and the PATH export: ruff check . ; black --check . --line-length 100 ; mypy texora_engine ; pytest -q — all clean/green (the real-model test is not in this FEAT; downloader/bundle tests use a local fake server, not mocked OCR)."
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

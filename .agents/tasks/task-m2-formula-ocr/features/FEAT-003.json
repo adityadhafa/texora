@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Engine API for M2 tasks 2.4 + 2.6: the bearer-protected POST /recognize/snip route (image -> {latex, confidence, confidence_kind, status, validation, mathml, asciimath=null}) with decoded-dimension/decompression-bomb guards, a single-worker inference pool, and a timeout that returns a failed result; GET /hardware + POST /hardware/device (CUDA/MPS/CPU detect + persisted override); and GET /models/{id} + a non-blocking download trigger returning ModelProgress. Satisfies task 2.4 done (integration returns a valid result for a fixture) and task 2.6 done (reports device; override takes effect). Design: m2-design.md §B.7, §B.2a/§B.2b, §B.9. Depends on FEAT-002.",
+  "status": "pending",
+  "steps": [
+    "Read .agents/tasks/context.json + FEAT-002.findings + this file FIRST, then m2-design.md §B.7/§B.2b/§B.9 and tasks.md 2.4/2.6. Mount all new routers on protected_router (bearer-enforced) following engine/texora_engine/api/routes.py + app.py.",
+    "Add snip config knobs to settings.py: max_snip_bytes, max_snip_pixels, max_snip_edge, snip_timeout_s, snip_concurrency (default 1). Set Pillow Image.MAX_IMAGE_PIXELS backstop at engine startup (app.py).",
+    "Create api/recognize.py (design §B.7, §B.9): SnipRequest (image_base64, is_display) + SnipResponse (latex, confidence, confidence_kind, status: RecognitionStatus, validation: RecognitionStatus, mathml, asciimath=None in M2, detail). Flow: decode/validate image (valid base64, <= max_snip_bytes; after Image.open reject width*height > max_snip_pixels or edge > max_snip_edge -> 422; wrap every Pillow decode so UnidentifiedImageError/DecompressionBombError/any decode error -> 422, never 500) -> cached-singleton build_formula_recognizer() -> run recognize in ThreadPoolExecutor(max_workers=1) under asyncio.wait_for(snip_timeout_s) (timeout -> 200 with status=failed, detail='recognition timed out') -> validate_and_normalize (downgrade status to needs_review/failed on failure) -> latex2mathml -> assemble SnipResponse. Map UnknownEngineError/FormulaStageNotConfigured -> clear 500.",
+    "Create api/hardware.py (design §B.7): Device + HardwareResponse. GET /hardware reports devices from torch.cuda.is_available()/torch.backends.mps.is_available() else CPU + the current selection from the SETTING table. POST /hardware/device validates the device is in the detected set (422 otherwise), persists via settings_dao, and the factory reads it on the next build.",
+    "Create api/models.py (design §B.2a/§B.2b): GET /models/{id} returns the current ModelProgress; the download trigger starts the server-side download as a background task and returns the initial downloading status immediately (non-blocking).",
+    "Include the three new routers in create_app (app.py) on protected_router.",
+    "Write engine integration tests (pytest + TestClient): test_recognize_api.py (no/invalid token -> 401; valid token + fixture image -> 200 with a valid {latex, confidence, confidence_kind, status, validation, mathml} and asciimath == null — AC-6, asserting whichever confidence branch the pinned pix2tex yields per FEAT-002/docs; oversized decoded image -> 422; malformed base64 -> 422); test_hardware_api.py (torch availability monkeypatched: GET returns the detected set + selection; a valid override changes the next-call selection AC-7; unknown device -> 422; no token -> 401); test_models_api.py (GET /models/{id} returns a valid ModelProgress; download trigger returns immediately with downloading; no token -> 401).",
+    "Run the engine gate; append output to docs/m2-verification.md incl. the AC-6 confidence branch asserted. Commit locally (conventional-commit), NEVER push. Set status completed; note in findings the exact request/response shapes + route paths FEAT-004 must proxy (recognize_snip/get_hardware/set_device/model_status/model_download)."
+  ],
+  "acceptance_criteria": [
+    "POST /recognize/snip with no/invalid bearer token returns 401; with a valid token and the fixture image returns a valid {latex, confidence, confidence_kind, status, validation, mathml} with asciimath == null; an oversized decoded image returns 422; malformed base64 returns 422 (test_recognize_api.py AC-6).",
+    "The confidence contract is asserted the branch the pinned pix2tex yields: (0,1] + token_logprob, or 0.0 + unavailable — never a fabricated number.",
+    "A per-call timeout returns a 200 SnipResponse with status=failed (not a guess); inference runs in a single-worker pool.",
+    "GET /hardware returns the detected device set + current selection; a device override changes the selection reported on the next call; an unknown device returns 422 (test_hardware_api.py AC-7).",
+    "GET /models/{id} returns a valid ModelProgress and the download trigger is non-blocking (test_models_api.py)."
+  ],
+  "verification": [
+    "From engine/ with the venv python and the PATH export: ruff check . ; black --check . --line-length 100 ; mypy texora_engine ; pytest -q — green."
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

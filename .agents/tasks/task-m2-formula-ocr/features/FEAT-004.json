@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Rust transport + capture (the HIGH-1 JS->engine seam + task 2.5 Rust side): store the live port + session token in SupervisorState and add an authenticated engine_request(ureq + bearer) proxy helper + a 500 ms model-download poller emitting engine://model-progress; add the thin proxy commands (recognize_snip/get_hardware/set_device/model_status/model_download) in lib.rs; register the Ctrl+Shift+M global shortcut + overlay + xcap screen capture emitting engine://snip-captured; and widen capabilities/default.json with the new command allow entries + shortcut/overlay scopes (NO new network capability — HTTP stays in Rust so the token never reaches the webview). Design: m2-design.md §B.2a, §B.2b, §B.10. Depends on FEAT-003 (the engine routes it forwards to). Needs vcvars64.",
+  "status": "pending",
+  "steps": [
+    "Read .agents/tasks/context.json + FEAT-003.findings + this file FIRST, then m2-design.md §B.2a/§B.2b/§B.10. All cargo commands run from apps/desktop/src-tauri inside a cmd.exe session that first calls vcvars64.bat (bash does not inherit the MSVC env).",
+    "Add Rust crate deps (design §B.10): tauri-plugin-global-shortcut (2.x matching the Tauri 2.12 line) + xcap (Apache-2.0); ureq already present. Pin exact versions verified on crates.io; add their docs/LICENSES.md rows in the same change.",
+    "Extend supervisor.rs (design §B.2a): store the live port + the session token in SupervisorState; add engine_request(method, path, body) -> Result<Bytes, Error> building a ureq request against the live port with Authorization: Bearer <token>, returning a typed 'engine not ready' error when no healthy port exists. Add the model-download poller (§B.2b): an in-flight id map on SupervisorState, a 500 ms GET /models/{id} poll emitting engine://model-progress, stopping on a terminal state (ready/corrupt/error). Do NOT expose port/token to JS. Keep business logic out of Rust — this is a thin authenticating forwarder only.",
+    "Create snip.rs (design §B.10): register Ctrl+Shift+M via tauri-plugin-global-shortcut (default persisted in SETTING), open a transparent overlay window for region selection, capture the monitor rect via xcap, crop, PNG-encode, base64, emit engine://snip-captured.",
+    "Edit lib.rs: register the global-shortcut plugin; add the thin commands recognize_snip(image_base64, is_display) / get_hardware() / set_device(device) / model_status(id) / model_download(id) to generate_handler!, each forwarding via engine_request (model_download returns immediately then registers the poller); keep each command a thin wrapper with no business logic.",
+    "Edit capabilities/default.json (design §B.2a/§B.10): add an allow entry for each new command for the main window, a global-shortcut:allow-register/unregister scope limited to the app, and the overlay window scope. Add NO network/HTTP capability.",
+    "Write Rust unit tests (#[cfg(test)] in the relevant modules): engine_request builds the correct URL + bearer header against a stub port and returns the not-ready error when no port is set; shortcut registration; xcap-encode of a known fixture buffer to PNG. Keep all existing supervisor tests passing.",
+    "Run the Rust gate (vcvars64): cargo fmt --check ; cargo clippy --all-targets -- -D warnings ; cargo test. Record output in docs/m2-verification.md and document the live hotkey/region-capture/on-screen popup as host/interactive PENDING (never claimed passed). Commit locally (conventional-commit), NEVER push. Set status completed; note in findings the exact command names + event names (engine://snip-captured, engine://model-progress) + payload shapes FEAT-005's engineClient must mirror."
+  ],
+  "acceptance_criteria": [
+    "SupervisorState holds the live port + token; engine_request builds an Authorization: Bearer request against the live loopback port and returns a typed not-ready error when no healthy port exists (cargo test passes).",
+    "lib.rs registers recognize_snip/get_hardware/set_device/model_status/model_download in generate_handler!, each a thin ureq forwarder; the token/port never cross into JS.",
+    "The model-download poller emits engine://model-progress every 500 ms and stops on a terminal state; capture emits engine://snip-captured.",
+    "capabilities/default.json permits the new commands + the global-shortcut register/unregister scope + the overlay window, and adds NO network/HTTP capability.",
+    "docs/LICENSES.md has rows for tauri-plugin-global-shortcut + xcap in the same change (AC-9)."
+  ],
+  "verification": [
+    "From apps/desktop/src-tauri inside a vcvars64 cmd.exe session, with the PATH export: cargo fmt --check ; cargo clippy --all-targets -- -D warnings ; cargo test — all green. Live hotkey/capture/popup are host/interactive and documented pending, not asserted."
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
