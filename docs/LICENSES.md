@@ -28,12 +28,33 @@ update the row.
 | uvicorn[standard] | 0.54.0    | PyPI      | BSD-3-Clause  | Yes          | Yes          | ASGI server hosting the FastAPI app. |
 | pydantic          | 2.14.1    | PyPI      | MIT           | Yes          | Yes          | Pydantic v2 models for all API I/O. |
 | pydantic-settings | 2.16.0    | PyPI      | MIT           | Yes          | Yes          | Typed settings loading (host/port/token). |
+| httpx             | 0.28.1    | PyPI      | BSD-3-Clause  | Yes          | Yes          | **Promoted dev→runtime in M2.** Streaming HTTP client for the model downloader (R-INST-2). |
+| pix2tex           | 0.1.4     | PyPI      | MIT           | Yes          | Yes          | Default M2 formula OCR model package (LaTeX-OCR). MIT code; its weights are a separate row under "ML models". |
+| torch             | 2.3.1+cpu | PyPI (PyTorch CPU index) | BSD-3-Clause | Yes | Yes | Tensor runtime backing pix2tex. CPU wheel from `https://download.pytorch.org/whl/cpu` (no CUDA payload). |
+| torchvision       | 0.18.1+cpu | PyPI (PyTorch CPU index) | BSD-3-Clause | Yes | Yes | torch companion required by the pix2tex/timm stack; version matched to torch 2.3.1. |
+| pillow            | 10.4.0    | PyPI      | HPND (MIT-CMU) | Yes         | Yes          | Decode snip images; feed the model. Decompression-bomb guard via `Image.MAX_IMAGE_PIXELS`. |
+| pylatexenc        | 2.10      | PyPI      | MIT           | Yes          | Yes          | LaTeX parse/structure validation (`LatexWalker`). |
+| latex2mathml      | 3.77.0    | PyPI      | MIT           | Yes          | Yes          | LaTeX→MathML for the snip result. |
+| transformers      | 4.42.4    | PyPI      | Apache-2.0    | Yes          | Yes          | Transitive (pix2tex tokenizer); pinned to the era-matched line for torch 2.3.1. |
+| tokenizers        | 0.19.1    | PyPI      | Apache-2.0    | Yes          | Yes          | Transitive (pix2tex `PreTrainedTokenizerFast`). |
+| huggingface-hub   | 0.24.6    | PyPI      | Apache-2.0    | Yes          | Yes          | Transitive (transformers). Not used for model fetch — our registry does that. |
+| numpy             | 1.26.4    | PyPI      | BSD-3-Clause  | Yes          | Yes          | Transitive (torch/opencv/pix2tex); numpy-1.x line for torch 2.3.1 compatibility. |
+| opencv-python-headless | 4.10.0.84 | PyPI | Apache-2.0    | Yes          | Yes          | Transitive (pix2tex/albumentations preprocessing). Headless (no GUI libs). |
+| albumentations    | 1.4.15    | PyPI      | MIT           | Yes          | Yes          | Transitive (pix2tex `test_transform`). |
+| albucore          | 0.0.16    | PyPI      | MIT           | Yes          | Yes          | Transitive (albumentations core); version matched to albumentations 1.4.15. |
+| timm              | 0.5.4     | PyPI      | Apache-2.0    | Yes          | Yes          | Transitive (pix2tex image resizer backbone). |
+| x-transformers    | 0.15.0    | PyPI      | MIT           | Yes          | Yes          | Transitive (pix2tex decoder wrapper). |
+| einops            | 0.8.2     | PyPI      | MIT           | Yes          | Yes          | Transitive (pix2tex/x-transformers tensor ops). |
+| entmax            | 1.3       | PyPI      | MIT           | Yes          | Yes          | Transitive (x-transformers). |
+| munch             | 4.0.0     | PyPI      | MIT           | Yes          | Yes          | Transitive (pix2tex config object). |
+| pandas            | 2.2.2     | PyPI      | BSD-3-Clause  | Yes          | Yes          | Transitive (pix2tex). |
+| scipy             | 1.13.1    | PyPI      | BSD-3-Clause  | Yes          | Yes          | Transitive (albumentations/scikit-image). |
+| PyYAML            | 6.0.3     | PyPI      | MIT           | Yes          | Yes          | Transitive (pix2tex config loader). |
 
 ## Engine (Python 3.11) — dev / test
 
 | Dependency      | Version | Ecosystem | License      | Personal use | Redistribute | Notes |
 |-----------------|---------|-----------|--------------|--------------|--------------|-------|
-| httpx           | 0.28.1  | PyPI      | BSD-3-Clause | Yes          | Yes          | Async client / FastAPI TestClient in tests. |
 | pytest          | 8.3.3   | PyPI      | MIT          | Yes          | Yes          | Test runner. Dev-only, not shipped. |
 | pytest-asyncio  | 0.24.0  | PyPI      | Apache-2.0   | Yes          | Yes          | Async test support. Dev-only. |
 | ruff            | 0.6.9   | PyPI      | MIT          | Yes          | Yes          | Linter. Dev-only. |
@@ -46,6 +67,12 @@ update the row.
 |---------------------------|---------|-----------|-------------------------------------------|--------------|--------------|-------|
 | pyinstaller               | 6.22.3  | PyPI      | GPL-2.0-or-later WITH Bootloader-exception | Yes          | Yes          | The bootloader exception explicitly permits shipping the frozen app under any license; PyInstaller itself is a build tool, not linked into the engine. |
 | pyinstaller-hooks-contrib | 2026.8  | PyPI      | Apache-2.0 AND GPL-2.0-or-later           | Yes          | Yes          | Hook collection used by PyInstaller at build time. Not shipped. |
+
+## ML models (downloaded at runtime, not bundled in the installer)
+
+| Model | Version / tag | Source | License | Personal use | Redistribute | Notes |
+|-------|---------------|--------|---------|--------------|--------------|-------|
+| pix2tex weights (`weights.pth` + `image_resizer.pth`) | release tag `v0.0.1` | GitHub release assets on `lukas-blecher/LaTeX-OCR` | MIT | Yes | Yes | Default M2 formula model weights. Fetched through Texora's own checksum-verified downloader (never pix2tex's built-in fetcher). **SHA-256 is pin-on-first-fetch:** upstream publishes no vendor-signed checksum, so the pinned hash in `models/catalog.py` is *our* SHA-256 of the upstream asset at the pinned tag, not a vendor attestation. It guarantees integrity/immutability relative to the bytes we first pinned (tamper/corruption detection on every later fetch + offline import), which is the accepted, documented R-INST-2/3 satisfaction for the provisional M2 default. A vendor-pinned / content-addressed hash is an M7 option. See `docs/m2-verification.md` for the recorded values. |
 
 ## Shell / frontend (`apps/desktop`) — npm
 

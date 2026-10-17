@@ -14,11 +14,20 @@ dependencies = [
     "uvicorn[standard]==0.54.0",
     "pydantic==2.14.1",
     "pydantic-settings==2.16.0",
+    # HTTP client for the M2 model downloader (promoted from dev to runtime).
+    "httpx==0.28.1",
+    # Formula OCR model + runtime (M2). The +cpu torch wheels come from the
+    # PyTorch CPU index; see engine/requirements.txt for the install command.
+    "pix2tex==0.1.4",
+    "torch==2.3.1",
+    "torchvision==0.18.1",
+    "pillow==10.4.0",
+    "pylatexenc==2.10",
+    "latex2mathml==3.77.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "httpx==0.28.1",
     "pytest==8.3.3",
     "pytest-asyncio==0.24.0",
     "ruff==0.6.9",
@@ -27,7 +36,18 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["texora_engine", "texora_engine.api"]
+packages = [
+    "texora_engine",
+    "texora_engine.api",
+    "texora_engine.db",
+    "texora_engine.ensemble",
+    "texora_engine.export",
+    "texora_engine.models",
+    "texora_engine.recognizers",
+]
+# Ship the generated KaTeX allow-list alongside the ensemble package.
+[tool.setuptools.package-data]
+"texora_engine.ensemble" = ["katex_allowlist.json"]
 
 [tool.ruff]
 line-length = 100
@@ -52,6 +72,20 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 disallow_untyped_defs = true
 files = ["texora_engine"]
+
+# Third-party ML/OCR libraries without published type stubs. We keep our own
+# code strictly typed but cannot type-check across these boundaries.
+[[tool.mypy.overrides]]
+module = [
+    "pix2tex.*",
+    "torch.*",
+    "PIL.*",
+    "pylatexenc.*",
+    "latex2mathml.*",
+    "munch",
+    "yaml",
+]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
