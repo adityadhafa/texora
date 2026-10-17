@@ -45,7 +45,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
   <!-- R-REC-6 "render check (KaTeX)" erratum (design §B.6): the engine does a
   KaTeX-supported-macro allow-list + structural check; the authoritative real-KaTeX render
   lives in the UI/vitest. Intent (never present un-renderable LaTeX as confident) is met. -->
-- [ ] **2.3 LaTeX normalize + validate** — `pylatexenc`/custom AST + KaTeX render check.
+- [x] **2.3 LaTeX normalize + validate** — `pylatexenc`/custom AST + KaTeX render check.
   `dep:2.2` · `req: R-REC-6/7` · `done:` invalid LaTeX flagged, valid passes, golden tests.
 - [ ] **2.4 `POST /recognize/snip`** — image → `{latex, confidence, mathml, asciimath}`. `dep:2.2,
   2.3` · `req: R-UI-2` · `done:` integration test returns valid result for fixture.

@@ -200,3 +200,40 @@ all clean (25 source files).
 Prefetch note: the real-model tests read `TEXORA_TEST_MODELS_DIR` (default
 `engine/.venv/pix2tex_models`, gitignored). CI runs them only in a gated job that prefetches
 the pinned weights; absent weights → skip-with-reason, never a mock.
+
+---
+
+## Task 2.3 — LaTeX normalize + validate + MathML
+
+### KaTeX allow-list generator input (confirmed at implementation time)
+
+Input path USED: the installed package's shipped ESM bundle
+`node_modules/.pnpm/katex@0.16.11/node_modules/katex/dist/katex.mjs` (the public function
+registry). The npm dist exposed the registry in a parseable form
+(`defineFunction({names:[...]})`, `defineMacro("\\name", ...)`, `defineSymbol(...,"\\name")`,
+`defineEnvironment({names:[...]})`), so the **verified fallback** (vendoring the katex SOURCE
+tarball) was NOT needed. No source-tarball SHA to record.
+
+```
+### python scripts/gen_katex_allowlist.py
+wrote engine/texora_engine/ensemble/katex_allowlist.json (commands=1141, environments=33)
+```
+
+The JSON header records `katex_version: 0.16.11`; `test_katex_allowlist.py` asserts it
+equals the `katex` pin in `apps/desktop/package.json`, so a katex bump without regeneration
+fails CI (generated, cannot drift — AC-5).
+
+### Tests (venv python, from `engine/`)
+
+```
+### pytest tests/test_katex_allowlist.py tests/test_latex.py tests/test_mathml.py -q
+..................   (18 passed)
+```
+
+- `test_latex.py`: valid LaTeX (frac/powers/sum/greek/left-right/matrix) → `ok`;
+  unbalanced braces / unmatched `\left` / unmatched+mismatched env → `failed`; out-of-allow-
+  list macro and unknown env → `needs_review`; normalization (`\dfrac`→`\frac`, spacing)
+  keeps the output valid (AC-5 engine side).
+- `test_mathml.py`: `\frac{a}{b}` → `<math …><mfrac>…` golden.
+
+`ruff`/`black --check`/`mypy` clean (29 source files).
