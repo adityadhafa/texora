@@ -47,13 +47,15 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
   lives in the UI/vitest. Intent (never present un-renderable LaTeX as confident) is met. -->
 - [x] **2.3 LaTeX normalize + validate** — `pylatexenc`/custom AST + KaTeX render check.
   `dep:2.2` · `req: R-REC-6/7` · `done:` invalid LaTeX flagged, valid passes, golden tests.
-- [ ] **2.4 `POST /recognize/snip`** — image → `{latex, confidence, mathml, asciimath}`. `dep:2.2,
+- [x] **2.4 `POST /recognize/snip`** — image → `{latex, confidence, mathml, asciimath}`. `dep:2.2,
   2.3` · `req: R-UI-2` · `done:` integration test returns valid result for fixture.
+  <!-- M2: asciimath always null (deferred to M6 exporters, design §B.9). -->
+- [x] **2.6 Hardware detect + device override** (implemented before 2.5; the Snip Settings UI
+  consumes it) — `GET /hardware`; CUDA/MPS/CPU; Settings display + override. `dep:2.2` ·
+  `req: R-HW-1/3` · `done:` reports correct device; override takes effect.
 - [ ] **2.5 Snip Tool UI** — global hotkey Ctrl+Shift+M, region capture, result popup, copy
   LaTeX/MathML/Markdown/OMML, KaTeX preview. `dep:1.4,2.4` · `req: R-UI-2` · `done:` E2E: hotkey →
   select → LaTeX shown; copy works.
-- [ ] **2.6 Hardware detect + device override** — `GET /hardware`; CUDA/MPS/CPU; Settings display +
-  override. `dep:2.2` · `req: R-HW-1/3` · `done:` reports correct device; override takes effect.
 
 ## M3 — PDF streaming + layout + text/formula pipeline + MD/LaTeX export
 

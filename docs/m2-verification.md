@@ -237,3 +237,47 @@ fails CI (generated, cannot drift — AC-5).
 - `test_mathml.py`: `\frac{a}{b}` → `<math …><mfrac>…` golden.
 
 `ruff`/`black --check`/`mypy` clean (29 source files).
+
+---
+
+## Tasks 2.4 + 2.6 — /recognize/snip, /hardware, /models (engine side)
+
+### Routes
+
+- `POST /recognize/snip` (protected): base64 decode + bounds guard → cached pix2tex
+  singleton → single-worker `ThreadPoolExecutor` under `asyncio.wait_for(snip_timeout_s)` →
+  `validate_and_normalize` → `latex2mathml`. Pillow decode errors
+  (`UnidentifiedImageError`/`DecompressionBombError`/decode failures) → **422, never 500**;
+  oversized decoded dimensions → 422; timeout → 200 `status=failed`; `asciimath` always
+  null.
+- `GET /hardware` + `POST /hardware/device` (protected): devices from torch availability;
+  selection persisted in the `setting` table; unknown device → 422.
+- `GET /models/{id}` + `POST /models/{id}/download` (protected): status snapshot; download
+  trigger returns `downloading` immediately (background task).
+
+### Tests (venv python, from `engine/`)
+
+```
+### pytest tests/test_settings.py tests/test_hardware_api.py tests/test_models_api.py \
+###        tests/test_recognize_api.py
+15 passed
+```
+
+- `test_recognize_api.py` (AC-6): no token → 401; malformed base64 → 422; oversized decoded
+  image → 422; real-model fixture → 200 with `{latex, confidence, confidence_kind, status,
+  validation, mathml}` and `asciimath == null`. **Confidence branch asserted: `confidence ==
+  0.0`, `confidence_kind == "unavailable"`** (the recorded pix2tex branch). Skips with reason
+  if weights absent — never mocked.
+- `test_hardware_api.py` (AC-7): 401 without token; GET reports cpu + selection; override to
+  cpu persists and is reported on the next call; unknown device → 422; cuda override works
+  when `_detect_devices` is monkeypatched.
+- `test_models_api.py`: 401 without token; status shape with both pinned files; unknown id →
+  404; download trigger returns `downloading` immediately (background stubbed so no real
+  transfer in the unit test).
+
+Full engine suite after 2.4/2.6: `pytest` → **59 passed**; `ruff`/`black --check`/`mypy`
+clean (32 source files).
+
+Note: a thread-shared SQLite connection is opened with `check_same_thread=False` because
+FastAPI runs sync routes in a worker threadpool (single-user loopback engine; WAL + the
+per-connection lock keep access safe).

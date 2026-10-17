@@ -32,9 +32,22 @@ def prefetched_models_dir() -> Path | None:
 
 @pytest.fixture()
 def settings(tmp_path: Path) -> Settings:
-    """Settings with a known token and an isolated log directory."""
+    """Settings with a known token and isolated log/db/models directories.
 
-    return Settings(host="127.0.0.1", port=8756, token=TEST_TOKEN, log_dir=tmp_path / "logs")
+    When prefetched pix2tex weights exist they are used so the snip integration test can run
+    the real model; otherwise ``models_dir`` points at an empty tmp dir and the snip test
+    skips (never mocks).
+    """
+
+    models_dir = prefetched_models_dir() or (tmp_path / "models")
+    return Settings(
+        host="127.0.0.1",
+        port=8756,
+        token=TEST_TOKEN,
+        log_dir=tmp_path / "logs",
+        db_path=tmp_path / "texora.db",
+        models_dir=models_dir,
+    )
 
 
 @pytest.fixture()
