@@ -238,3 +238,97 @@ PENDING / host-limited for FEAT-003:
 - **DocLayout-YOLO (AGPL)** — adapter present for local opt-in use but not installed, not
   registered, and not exercised in the default path; `mypy` ignores the missing `doclayout_yolo`
   import via the stub-less override list.
+
+---
+
+## FEAT-004 — tasks 3.5 (text OCR adapter) + 3.6 (page assembly)
+
+New engine modules: `recognizers/base.py` (+`TextLine`/`TextResult`/`TextRecognizer` Protocol,
+reusing the single `layout.base.BBox`), `recognizers/text_factory.py` (the single-owning
+PP-OCRv5→Tesseract fallback decision), `recognizers/text_ppocr_onnx.py` (id `pp_ocrv5_onnx`,
+PP-OCRv5 det+rec via ONNX Runtime, DB post-process via shapely+pyclipper, CTC rec decode via
+`rec_keys.txt`), `recognizers/text_tesseract.py` (id `tesseract`, `eng+ind`),
+`pipeline/page_result.py` (`PageResult`/`DocumentResult`/`RegionContent`/`InlineRun`),
+`pipeline/assembler.py` (ingest→layout→reading-order→recognition, reusing the M2 pix2tex
+`build_formula_recognizer` UNCHANGED for all math), and `api/pages.py`
+(`POST /pages/recognize`, bearer-protected, 409/422/500 mapping).
+
+### New dependency pins (verified against official sources before pinning)
+
+Added to `engine/requirements.txt` with matching `docs/LICENSES.md` rows in this same change
+(FEAT-001 intentionally deferred them until the ONNX text adapter that needs them):
+
+- `shapely==2.0.6` — BSD-3-Clause (PyPI/GitHub). PP-OCR DB post-process polygon geometry.
+- `pyclipper==1.3.0.post6` — MIT (PyPI). PP-OCR DB post-process Vatti unclip. Latest cp311 wheel.
+
+```
+$ .venv/Scripts/python.exe -m pip install "shapely==2.0.6" "pyclipper==1.3.0.post6"
+Successfully installed pyclipper-1.3.0.post6 shapely-2.0.6
+$ .venv/Scripts/python.exe -m pip check
+No broken requirements found.
+```
+
+PaddleOCR / PP-OCRv5 license re-confirmed **Apache-2.0** (official `PaddlePaddle/PaddleOCR`), so
+the shipped default text path is fully permissive; its `docs/LICENSES.md` ML-models rows (det/rec
++ `rec_keys.txt` dictionary) were already present from FEAT-003 and are unchanged.
+
+### Task 3.5 — text factory decision table + adapters
+
+```
+$ .venv/Scripts/python.exe -m pytest tests/test_text_factory.py -q
+9 passed
+    # full design §7.2.1 decision table: PP present -> PP (every model_id resolved + named
+    # paths passed); PP absent + fallback + tesseract usable -> tesseract (INFO degrade);
+    # PP absent + fallback + tesseract NOT usable -> re-raise ModelNotReady (API 409);
+    # PP absent + no fallback -> 409; explicit tesseract + missing binary -> TesseractUnavailable;
+    # built.id == configured id; unknown id / absent key -> typed errors.
+$ .venv/Scripts/python.exe -m pytest tests/test_text_ppocr.py tests/test_text_tesseract.py -rs
+SKIPPED tests/test_text_tesseract.py: tesseract binary not installed on this host; fallback test is host-limited
+SKIPPED tests/test_text_ppocr.py: PP-OCRv5 ONNX weights absent; run model prefetch
+    # contract + missing-weights(ModelNotReady) + failure-injection(->FAILED, never raises) pass;
+    # the real EN/ID accuracy tests are model-/binary-gated and skip-with-reason (never mocked).
+```
+
+### Task 3.6 — page assembler + PageResult + POST /pages/recognize
+
+```
+$ .venv/Scripts/python.exe -m pytest tests/test_assembler.py tests/test_pages_api.py -rs
+SKIPPED tests/test_assembler.py: pix2tex weights absent; run model prefetch
+SKIPPED tests/test_pages_api.py: pix2tex/PP-OCRv5 weights absent; the 200 path is model-gated
+    # structure tests on the REAL born_digital_math.pdf fixture pass WITHOUT weights (text comes
+    # from the pdfium text layer; a tiny formula double exercises the math path): region types +
+    # non-decreasing reading order + display-math latex/mathml + inline math recognized;
+    # TABLE/HANDWRITING -> needs_review (detail 'M6'), worst-of page roll-up = needs_review.
+    # API: 401 w/o token, 422 bad path/traversal/extension/range, 409 when a model is absent.
+    # the @pytest.mark.model real pix2tex+PP-OCRv5 integration + the 200 path skip-with-reason.
+```
+
+### Full engine gate (FEAT-004)
+
+```
+$ .venv/Scripts/python.exe -m ruff check .
+All checks passed!
+$ .venv/Scripts/python.exe -m black --check . --line-length 100
+All done! ✨ 🍰 ✨
+84 files would be left unchanged.
+$ .venv/Scripts/python.exe -m mypy texora_engine
+Success: no issues found in 52 source files
+$ .venv/Scripts/python.exe -m pytest -q
+135 passed, 12 skipped in 28.71s
+```
+
+The 12 skips = 3 M2 pix2tex model-gated tests + 2 FEAT-003 layout model-gated tests + 7 FEAT-004
+model-/binary-gated tests (PP-OCRv5 ONNX real recognition, pix2tex-backed assembler + API 200,
+Tesseract real EN/ID). All skip-with-reason when weights/binary are absent — never mocked.
+
+PENDING / host-limited for FEAT-004:
+- **Tesseract binary ABSENT on this host** — `pytesseract.get_tesseract_version()` fails, so the
+  Tesseract real EN/ID accuracy test and the live fallback-degrade path are documented PENDING
+  (host-limited). The factory decision table that *selects* Tesseract is fully covered by
+  monkeypatching `_tesseract_available` (no binary needed). Install Tesseract 5.x or set
+  `TEXORA_ENGINE_TESSERACT_CMD` to exercise the real fallback.
+- **PP-OCRv5 ONNX weights** — URL + SHA-256 are pin-on-first-fetch at adoption; the real EN/ID
+  recognition test and the assembler/API 200 path skip-with-reason until weights are prefetched
+  (same gate as the M2 pix2tex and FEAT-003 PP-DocLayout real-model tests). Never mocked.
+- **CUDA execution provider** — code-review-only on this CPU host; `CPUExecutionProvider` is the
+  tested path, CUDA EP wiring is reviewed and flagged PENDING.

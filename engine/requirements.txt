@@ -29,13 +29,15 @@ pillow==10.4.0
 # pypdfium2: permissive PDF renderer (shipped default). pillow-heif: HEIC/HEIF decode.
 # onnxruntime: CPU-default inference runtime for the PP-DocLayout / PP-OCRv5 ONNX paths.
 # pytesseract: wrapper for the permissive Tesseract fallback text OCR (system/bundled 5.x).
-# NOTE: shapely/pyclipper (PP-OCR ONNX postprocess transitives) are intentionally NOT pinned
-# yet — FEAT-001 adds no ONNX decode code, so they are added with the text adapter that needs
-# them (see docs/m3-verification.md). opencv-python-headless + numpy are already pinned above.
+# shapely/pyclipper are the PP-OCR ONNX detection post-process transitives (DB box unclip);
+# pinned here in FEAT-004 (the text adapter that needs them). opencv-python-headless + numpy
+# are already pinned above.
 pypdfium2==5.14.0
 pillow-heif==0.18.0
 onnxruntime==1.19.2
 pytesseract==0.3.13
+shapely==2.0.6
+pyclipper==1.3.0.post6
 
 # --- LaTeX parse/validate + MathML (M2) ---
 pylatexenc==2.10

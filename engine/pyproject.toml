@@ -43,7 +43,9 @@ packages = [
     "texora_engine.ensemble",
     "texora_engine.export",
     "texora_engine.ingest",
+    "texora_engine.layout",
     "texora_engine.models",
+    "texora_engine.pipeline",
     "texora_engine.recognizers",
 ]
 # Ship the generated KaTeX allow-list alongside the ensemble package.
@@ -90,6 +92,9 @@ module = [
     "cv2.*",
     "onnxruntime.*",
     "doclayout_yolo.*",
+    "pytesseract.*",
+    "pyclipper.*",
+    "shapely.*",
 ]
 ignore_missing_imports = true
 

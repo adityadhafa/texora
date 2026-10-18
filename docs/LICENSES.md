@@ -37,6 +37,8 @@ update the row.
 | pillow-heif       | 0.18.0    | PyPI      | BSD-3-Clause  | Yes          | Yes          | **M3.** HEIC/HEIF image decode via `register_heif_opener()`. Bundled `libheif` is LGPL-3.0, dynamically linked (redistributable); no static LGPL linkage. |
 | onnxruntime       | 1.19.2    | PyPI      | MIT           | Yes          | Yes          | **M3.** CPU-default inference runtime for the PP-DocLayout / PP-OCRv5 ONNX paths (CUDA EP selected via `settings.device`). Resolved to latest 1.19 patch (1.19.2) on PyPI. |
 | pytesseract       | 0.3.13    | PyPI      | Apache-2.0    | Yes          | Yes          | **M3.** Wrapper for the permissive Tesseract fallback text OCR. The system/bundled **Tesseract 5.x** engine it drives is also Apache-2.0. |
+| shapely           | 2.0.6     | PyPI      | BSD-3-Clause  | Yes          | Yes          | **M3 (FEAT-004).** Polygon geometry for the PP-OCRv5 ONNX detection post-process (DB box area/length → unclip distance). Verified BSD-3-Clause against official PyPI/GitHub metadata. |
+| pyclipper         | 1.3.0.post6 | PyPI    | MIT           | Yes          | Yes          | **M3 (FEAT-004).** Vatti polygon-offset (unclip) for the PP-OCRv5 ONNX detection post-process. Verified MIT against official PyPI metadata. Resolved to the latest cp311 wheel `1.3.0.post6`. |
 | pylatexenc        | 2.10      | PyPI      | MIT           | Yes          | Yes          | LaTeX parse/structure validation (`LatexWalker`). |
 | latex2mathml      | 3.77.0    | PyPI      | MIT           | Yes          | Yes          | LaTeX→MathML for the snip result. |
 | transformers      | 4.42.4    | PyPI      | Apache-2.0    | Yes          | Yes          | Transitive (pix2tex tokenizer); pinned to the era-matched line for torch 2.3.1. |

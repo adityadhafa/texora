@@ -77,10 +77,13 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
   `docs/m3-verification.md`.)_
 - [x] **3.4 Reading order** — XY-cut + column/eq-number handling. `dep:3.3` · `req: R-LAY-2` ·
   `done:` multi-column fixture ordered correctly.
-- [ ] **3.5 Text OCR adapter** — PP-OCRv5 default, Tesseract fallback; EN + ID. `dep:3.3` ·
-  `req: R-REC-1` · `done:` text accuracy sanity test EN + ID fixtures.
-- [ ] **3.6 Page assembly** — merge regions by reading order into a page result. `dep:3.4,3.5,2.2` ·
-  `req: R-EXP-1` · `done:` assembled JSON matches expected structure on fixture.
+- [x] **3.5 Text OCR adapter** — PP-OCRv5 default, Tesseract fallback; EN + ID. `dep:3.3` ·
+  `req: R-REC-1` · `done:` text accuracy sanity test EN + ID fixtures. (FEAT-004; EN/ID real-fixture
+  accuracy test is model-/binary-gated — PP-OCRv5 ONNX weights are pin-on-first-fetch and the
+  Tesseract binary is absent on this host, so it skips-with-reason; see docs/m3-verification.md.)
+- [x] **3.6 Page assembly** — merge regions by reading order into a page result. `dep:3.4,3.5,2.2` ·
+  `req: R-EXP-1` · `done:` assembled JSON matches expected structure on fixture. (FEAT-004; verified
+  on born_digital_math.pdf; real-engine integration is model-gated.)
 - [ ] **3.7 Markdown + LaTeX export** — `$...$`/`$$...$$`; `.tex` with preamble template. `dep:3.6` ·
   `req: R-EXP-2` · `done:` golden-file export; LaTeX compiles.
 

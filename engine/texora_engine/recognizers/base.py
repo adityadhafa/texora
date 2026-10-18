@@ -15,6 +15,10 @@ from typing import Protocol, runtime_checkable
 from PIL import Image
 from pydantic import BaseModel, Field
 
+# One BBox definition across layout + text + formula result types (design §2.1 / F5): reuse
+# the layout BBox rather than duplicating it, so the same coordinate frame crosses modules.
+from texora_engine.layout.base import BBox
+
 
 class RecognitionStatus(StrEnum):
     """Single source of truth for recognition/validation state.
@@ -82,5 +86,47 @@ class FormulaRecognizer(Protocol):
 
         Pure: no I/O beyond the model forward pass. Implementations MUST catch their own
         inference errors and return ``status=FAILED`` with ``detail`` rather than raising.
+        """
+        ...
+
+
+class TextLine(BaseModel):
+    """One recognized line of text with its box and confidence (design §7.1).
+
+    ``bbox`` reuses the single :class:`~texora_engine.layout.base.BBox` definition (imported
+    below) so formula + text + layout share one coordinate frame with no drift.
+    """
+
+    text: str
+    bbox: BBox
+    confidence: float = Field(ge=0.0, le=1.0, default=0.0)
+    confidence_kind: ConfidenceKind = Field(default=ConfidenceKind.TOKEN_LOGPROB)
+
+
+class TextResult(BaseModel):
+    """Explicit text-recognition result. Never contains a fabricated guess."""
+
+    lines: list[TextLine] = Field(default_factory=list)
+    status: RecognitionStatus = Field(default=RecognitionStatus.OK)
+    engine_id: str = Field(description="Adapter id that produced this result.")
+    detail: str | None = Field(default=None, description="Failure/why context.")
+
+
+@runtime_checkable
+class TextRecognizer(Protocol):
+    """Stable, minimal, pure text-recognizer interface (mirror of ``FormulaRecognizer``)."""
+
+    id: str
+    # Model registry id(s) this adapter needs (``()`` for Tesseract — own traineddata).
+    model_ids: tuple[str, ...]
+    # Languages this adapter recognizes (EN + ID are first-class, design §7.2).
+    langs: tuple[str, ...]
+
+    def recognize(self, image: Image.Image, ctx: RegionContext) -> TextResult:
+        """Recognize text in a cropped region into a :class:`TextResult`.
+
+        Pure: no I/O beyond the model forward pass. Implementations MUST catch their own
+        inference errors and return ``status=FAILED`` with ``detail`` rather than raising,
+        and MUST NEVER fabricate text (``R-REC-8``).
         """
         ...

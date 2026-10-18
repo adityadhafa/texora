@@ -1,6 +1,6 @@
 # Texora — Build Progress Checkpoint
 
-Last updated: 2026-10-18 (M3 FEAT-003) · Milestone: **M3 (PDF pipeline → MD/LaTeX)** ·
+Last updated: 2026-10-18 (M3 FEAT-004) · Milestone: **M3 (PDF pipeline → MD/LaTeX)** ·
 Branch: `feat/m3-pdf-pipeline` (worktree `.worktrees/m3-pdf-pipeline`). NOT merged into `main`.
 M1 and M2 are complete; M3 is in progress on this branch.
 
@@ -11,8 +11,7 @@ M1 and M2 are complete; M3 is in progress on this branch.
 | FEAT-001 foundation | deps + `pipeline.yaml` stages + typed ingest/settings | **DONE** | M3 runtime deps pinned (`pypdfium2` 5.14.0, `pillow-heif` 0.18.0, `onnxruntime` 1.19.2, `pytesseract` 0.3.13) + license rows; `pytest.mark.model`/`latex` markers registered. See `docs/m3-verification.md`. |
 | FEAT-002 ingest | 3.1 render/load/detect · 3.2 preprocess | **DONE** | `ingest/` package: pypdfium2 render (adaptive DPI + one-shot small-font raise), image loaders incl. HEIC/TIFF, born-digital/scanned detection, toggleable preprocessing. Single point→pixel conversion site. |
 | FEAT-003 layout | 3.3 layout Protocol + default · 3.4 reading order | **DONE** | `layout/` package implemented fresh as ONE coherent API: `LayoutDetector` Protocol + full `RegionType` taxonomy; permissive-only factory (`pp_doclayout_onnx`, Apache-2.0; AGPL `doclayout_yolo` present but unregistered/opt-in); no-model `born_digital` structural detector; pure XY-cut reading order with column + equation-number binding. Catalog pins 3 ONNX models (file names now, URL/SHA pin-on-first-fetch) + Apache-2.0 license rows. Full gate green. |
-| FEAT-004 text | 3.5 PP-OCRv5 + Tesseract (EN+ID) | pending | Not started. |
-| FEAT-005 assembler | 3.6 page assembly + `POST /pages/recognize` | pending | Not started. |
+| FEAT-004 text + assembler | 3.5 PP-OCRv5 + Tesseract (EN+ID) · 3.6 page assembly + `POST /pages/recognize` | **DONE** | Delivered together as FEAT-004 (tasks 3.5 + 3.6). `TextRecognizer` Protocol (reusing the single `layout.base.BBox`); `pp_ocrv5_onnx` PP-OCRv5 det+rec via ONNX Runtime (DB post-process via shapely+pyclipper, CTC decode via `rec_keys.txt`) + `tesseract` fallback (EN+ID). Single-owning fallback decision in `build_text_recognizer` (full §7.2.1 table covered). `pipeline/` assembler merges ingest→layout→reading-order→recognition into typed `PageResult`/`DocumentResult`, reusing the M2 pix2tex `build_formula_recognizer` UNCHANGED for all math; TABLE/HANDWRITING → `needs_review` (M6). `POST /pages/recognize` bearer-protected (409/422/500 mapping). `shapely`/`pyclipper` pinned + license rows added in this change. Full gate green. |
 | FEAT-006 export | 3.7 Markdown + LaTeX + golden files | pending | Not started. |
 
 ### FEAT-003 gate (this change) — all green on this host
@@ -28,6 +27,21 @@ command output in `docs/m3-verification.md` §FEAT-003.
 - **CUDA execution provider** — code-review-only on this CPU host; `CPUExecutionProvider` is tested.
 - **DocLayout-YOLO (AGPL)** — opt-in adapter present but not installed, not registered, not in any
   default path.
+
+### FEAT-004 gate (this change) — all green on this host
+`ruff check .` clean · `black --check . --line-length 100` clean · `mypy texora_engine` clean
+(52 files) · `pytest -q` → **135 passed, 12 skipped** (12 skips = 3 M2 pix2tex + 2 FEAT-003 layout
++ 7 FEAT-004 model-/binary-gated tests, all skip-with-reason when ONNX weights / the Tesseract
+binary are absent — never mocked). Full command output in `docs/m3-verification.md` §FEAT-004.
+
+### FEAT-004 PENDING / host-limited (recorded honestly, never claimed passed)
+- **Tesseract binary ABSENT on this host** — the real EN/ID accuracy test and the live
+  fallback-degrade path are documented PENDING (host-limited); the factory decision that *selects*
+  Tesseract is fully covered by monkeypatching. Install Tesseract 5.x or set
+  `TEXORA_ENGINE_TESSERACT_CMD` to exercise the real fallback.
+- **PP-OCRv5 ONNX weights** — pin-on-first-fetch; the real EN/ID recognition test + the
+  pix2tex-backed assembler/API-200 path skip-with-reason until weights are prefetched (never mocked).
+- **CUDA execution provider** — code-review-only on this CPU host; `CPUExecutionProvider` is tested.
 
 ---
 

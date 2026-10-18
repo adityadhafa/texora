@@ -58,6 +58,37 @@ def prefetched_layout_models_dir() -> Path | None:
     return None
 
 
+def prefetched_text_models_dir() -> Path | None:
+    """Return the models dir with the prefetched PP-OCRv5 det+rec ONNX weights, or None if absent.
+
+    Mirrors :func:`prefetched_models_dir` for the M3 text model-gated test (``@pytest.mark.model``):
+    PP-OCRv5 runs only when ``pp_ocrv5_det/det.onnx`` + ``pp_ocrv5_rec/rec.onnx`` +
+    ``pp_ocrv5_rec/rec_keys.txt`` are prefetched (never mocked), otherwise it skips with reason.
+    Overridable via ``TEXORA_TEST_MODELS_DIR``.
+    """
+
+    env = os.environ.get("TEXORA_TEST_MODELS_DIR")
+    base = Path(env) if env else _DEFAULT_MODELS_DIR
+    det = base / "pp_ocrv5_det" / "det.onnx"
+    rec = base / "pp_ocrv5_rec" / "rec.onnx"
+    keys = base / "pp_ocrv5_rec" / "rec_keys.txt"
+    if det.exists() and rec.exists() and keys.exists():
+        return base
+    return None
+
+
+def tesseract_available() -> bool:
+    """Whether the Tesseract binary is usable on this host (gates the fallback real test)."""
+
+    try:
+        import pytesseract
+
+        pytesseract.get_tesseract_version()
+    except Exception:
+        return False
+    return True
+
+
 @pytest.fixture()
 def settings(tmp_path: Path) -> Settings:
     """Settings with a known token and isolated log/db/models directories.

@@ -16,6 +16,7 @@ from texora_engine.api import (
     hardware_router,
     health_router,
     models_router,
+    pages_router,
     protected_router,
     recognize_router,
 )
@@ -47,12 +48,14 @@ def create_app(settings: Settings) -> FastAPI:
     app.state.db = conn
     app.state.model_store = ModelStore(conn, settings)
     app.state.formula_recognizer = None  # cached singleton, set on first /recognize/snip
+    app.state.pipeline_deps = None  # cached PipelineDeps, set on first /pages/recognize
 
     app.include_router(health_router)
     app.include_router(protected_router)
     app.include_router(recognize_router)
     app.include_router(hardware_router)
     app.include_router(models_router)
+    app.include_router(pages_router)
 
     logger.info(
         "engine app created host=%s port=%s token_set=%s db=%s",
