@@ -1,0 +1,7 @@
+{
+  "task_id": "task-m3-pdf-pipeline",
+  "task_description": "Texora Milestone M3 (tasks 3.1-3.7): the headline PDF -> Markdown/LaTeX pipeline. Add engine packages ingest/ (pypdfium2 render + image loaders + born-digital detection + toggleable preprocessing), layout/ (LayoutDetector Protocol + permissive PP-DocLayout-ONNX default + no-model born-digital fast-path + AGPL DocLayout-YOLO opt-in-unregistered + XY-cut reading order), recognizers/ text adapters (PP-OCRv5 default + Tesseract fallback, EN+ID), pipeline/ (page assembler + typed PageResult/DocumentResult + POST /pages/recognize), and export/ (Markdown + LaTeX emitters with golden files). Reuse the M2 pix2tex FormulaRecognizer, factory/Protocol pattern, model store/catalog, db DAO, pydantic-settings, and protected_router. Engine-side only; do NOT build the Tauri sidecar. Implement from the APPROVED design .agents/tasks/m3-design.md.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005"],
+  "blocked_reason": null
+}

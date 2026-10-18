@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-005",
+  "type": "feat",
+  "description": "Task 3.7 + M3 documentation: the Markdown and LaTeX exporters with byte-stable golden-file tests (including a paragraph-with-inline-math golden proving $...$ lands mid-paragraph), the gated latexmk compile (xfail-skips locally, non-skippable in CI), and the M3 docs -- update docs/PROGRESS.md, tick 3.1-3.7 in .kiro/specs/texora/tasks.md, and create docs/m3-verification.md with REAL command output + a sample PDF->Markdown snippet. Depends on FEAT-004 (DocumentResult model).",
+  "status": "pending",
+  "steps": [
+    "Create engine/texora_engine/export/markdown.py: document_to_markdown(doc:DocumentResult, opts:MarkdownOptions)->str. Walk pages->regions in reading order: TITLE -> #/## by level; PARAGRAPH -> concatenate RegionContent.inlines in order (TEXT runs verbatim, MATH runs wrapped $<latex>$ so inline math lands at its true position -- design F5); DISPLAY_MATH -> $$\\n<latex>\\n$$ with an attached equation number as $$<latex> \\tag{n}$$; LIST -> -/1. items; CODE -> fenced block; TABLE -> honest '<!-- table: needs_review (M6) -->' placeholder + cropped image ref (never a fabricated table); FIGURE -> ![caption](assets/fig_p<page>_<n>.png); any status!=ok region -> inline '<!-- needs_review: <detail> -->' marker, nothing dropped or fabricated. MarkdownOptions(math_delimiters='dollar', emit_tags, include_review_markers, figure_asset_dir) from settings/pipeline.yaml.",
+    "Create engine/texora_engine/export/latex.py: document_to_latex(doc, opts)->str. Preamble template selected by opts.preamble ('article' default) -> \\documentclass{article} + amsmath,amssymb,graphicx,booktabs + UTF-8; templates live as config (settings + a templates/ string), not magic constants. Body: TITLE->\\section; paragraphs concatenate inlines (TEXT verbatim, MATH wrapped $...$) so inline math sits in place (design F5); DISPLAY_MATH in \\begin{equation}...\\end{equation} (numbered when an equation number is attached, else equation*); figures \\includegraphics; TABLE -> placeholder comment + crop include; needs_review -> '% needs_review: ...' comment. Only emit macros within the KaTeX/amsmath-supported set already validated by ensemble/latex.py so the golden .tex compiles with the documented preamble.",
+    "Edit engine/texora_engine/export/__init__.py to export document_to_markdown + document_to_latex (keep latex_to_mathml).",
+    "Add golden fixtures engine/tests/golden/doc_sample.md and doc_sample.tex -- byte-stable renders of a FIXED in-test DocumentResult (constructed from known regions; this is deterministic TEST DATA, not a mocked production OCR result) that INCLUDES a paragraph-with-inline-math so $...$ placement is byte-asserted.",
+    "Write engine/tests/test_export_markdown.py (document_to_markdown byte-matches golden/doc_sample.md; the inline-math paragraph lands $...$ mid-paragraph) and test_export_latex.py (document_to_latex byte-matches golden/doc_sample.tex; a @pytest.mark.latex test that runs latexmk -pdf -interaction=nonstopmode on the golden .tex and asserts exit 0 -- it xfail-skips with a recorded reason when no TeX toolchain is found (THIS host has none) and must NOT be deleted or silently passed; the CI m3-latex-compile job provisions TinyTeX/texlive and runs it with no-skip).",
+    "Update docs/PROGRESS.md to M3 state: branch feat/m3-pdf-pipeline, a per-task (3.1-3.7) status table, the required PATH export + venv note, and the host-pending items (LaTeX compile, ONNX weights, CUDA).",
+    "Tick [x] for 3.1-3.7 in .kiro/specs/texora/tasks.md ONLY for criteria actually met on this host; record any host-limited part as a note next to the task (e.g. LaTeX compile verified in CI, PENDING locally) -- never a false tick.",
+    "Create docs/m3-verification.md mirroring docs/m2-verification.md: paste REAL captured output of the engine gate (ruff/black/mypy/pytest) and the per-feature test runs; include a sample PDF->Markdown result snippet produced by running born_digital_math.pdf through the real pipeline (assembler -> document_to_markdown); record the actual installed dep versions from pip freeze; and record the LaTeX-compile, ONNX-model-weights (incl. the rapid-layout/rapidocr contingency if used), and CUDA items honestly as PENDING MANUAL/CI where they cannot run on this host.",
+    "Clean up any temp files created during verification before committing."
+  ],
+  "acceptance_criteria": [
+    "`pytest tests/test_export_markdown.py tests/test_export_latex.py -q` passes; the Markdown/LaTeX outputs byte-match the goldens and the inline-math paragraph golden proves $...$ lands mid-paragraph.",
+    "The @pytest.mark.latex compile test xfail-skips on this host with a recorded reason (and is written to assert latexmk exit 0 where a toolchain exists); it is not deleted or silently passed.",
+    "docs/PROGRESS.md reflects M3; 3.1-3.7 are ticked in tasks.md only where truly met, with host-limited notes.",
+    "docs/m3-verification.md contains REAL command output (engine gate + per-task) and a real PDF->Markdown sample snippet, with PENDING items recorded honestly.",
+    "The full engine gate (ruff/black/mypy/pytest) passes and the pasted verification output matches a live re-run."
+  ],
+  "verification": [
+    "cd engine && .venv/Scripts/python.exe -m pytest tests/test_export_markdown.py tests/test_export_latex.py -q",
+    "cd engine && .venv/Scripts/python.exe -m ruff check . && .venv/Scripts/python.exe -m black --check . --line-length 100 && .venv/Scripts/python.exe -m mypy texora_engine && .venv/Scripts/python.exe -m pytest -q",
+    "git -C \"c:\\data\\kucing\\texora\\.worktrees\\m3-pdf-pipeline\" status --short"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
