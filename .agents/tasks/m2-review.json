@@ -1,0 +1,12 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "severity": "LOW",
+      "title": "Whole-monitor capture vs region select",
+      "file": "apps/desktop/src-tauri/src/snip.rs",
+      "detail": "capture_primary_png_base64 grabs the entire primary monitor; on-screen region selection is deferred. This is a documented, deliberate M2 scope choice (comment in snip.rs + PENDING MANUAL in docs/m2-verification.md), not a defect. No action required for M2; track region-select UX as a host/interactive follow-up."
+    }
+  ],
+  "reviewDoc": "c:\\data\\kucing\\texora\\.worktrees\\m2-formula-ocr/.agents/tasks/m2-review.md"
+}
