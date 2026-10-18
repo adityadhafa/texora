@@ -13,6 +13,16 @@ from texora_engine.settings import Settings
 
 TEST_TOKEN = "test-token-abc123"
 
+FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
+
+
+@pytest.fixture()
+def fixtures_dir() -> Path:
+    """Absolute path to the committed test fixtures directory."""
+
+    return FIXTURES_DIR
+
+
 # Where prefetched pix2tex weights live for the real-model test. Overridable via env so CI
 # can point at its gated prefetch. Defaults to the local dev prefetch under the venv.
 _DEFAULT_MODELS_DIR = Path(__file__).resolve().parents[1] / ".venv" / "pix2tex_models"

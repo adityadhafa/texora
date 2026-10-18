@@ -42,6 +42,7 @@ packages = [
     "texora_engine.db",
     "texora_engine.ensemble",
     "texora_engine.export",
+    "texora_engine.ingest",
     "texora_engine.models",
     "texora_engine.recognizers",
 ]
@@ -84,6 +85,9 @@ module = [
     "latex2mathml.*",
     "munch",
     "yaml",
+    "pypdfium2.*",
+    "pillow_heif.*",
+    "cv2.*",
 ]
 ignore_missing_imports = true
 

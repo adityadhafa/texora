@@ -77,3 +77,64 @@ $ .venv/Scripts/python.exe -m pytest -q
 PENDING / host-limited (unchanged for FEAT-001; no model, LaTeX, or CUDA paths touched here):
 the `@pytest.mark.latex` TeX-compile and `@pytest.mark.model` weight-backed tests arrive with
 later M3 features; CUDA EP remains code-review-only on this CPU host.
+
+---
+
+## FEAT-002 — ingest/ package: pypdfium2 render + image loaders + detection + preprocess (3.1/3.2)
+
+No new third-party dependency was added (pypdfium2 / pillow-heif / opencv-python-headless /
+numpy were all pinned + licensed in FEAT-001), so `docs/LICENSES.md` needed no new row. mypy
+`[[tool.mypy.overrides]]` was extended to cover the first imports of the stub-less libs
+`pypdfium2.*`, `pillow_heif.*`, and `cv2.*`.
+
+### New modules
+
+`engine/texora_engine/ingest/`: `base.py` (SourceKind, PdfTextSpan, RenderedPage,
+IngestError), `pdf.py` (lazy per-page pypdfium2 render, adaptive DPI + one-shot small-font
+raise, the SINGLE point->pixel conversion `_pt_to_px_bbox`), `images.py` (Pillow + pillow-heif
+loaders, multi-page TIFF, M2 decompression-bomb guards -> typed IngestError), `detect.py`
+(pure born-digital/scanned classifier over the pdfium text page), `preprocess.py` (one pure
+fn per step; fixed order deskew->perspective->denoise->binarize->auto_crop; disabled step is a
+byte-identical no-op), `__init__.py` (re-exports).
+
+### Fixtures (reproducibly generated, license-clean)
+
+Generators added under `scripts/`: `gen_born_digital_pdf.py` (writes `born_digital_math.pdf`
+by hand, standard Type1 fonts only, plus an image-only `scanned.pdf` detector-negative) and
+`gen_ingest_image_fixtures.py` (writes `scanned_page.png`, `text_en.png`, `text_id.png`,
+`skewed_scan.png` + `skewed_scan.json` skew metadata, and per-format `sample.jpg/.webp/.bmp/
+.heic` + two-frame `multipage.tiff`). Both are deterministic (fixed seed/layout, no
+timestamps).
+
+### Coordinate-conversion check (the one fiddly invariant)
+
+The fixture title char `E` sits at pdfium point box ~`(170.36, 740.0, 181.20, 751.92)` on a
+612x792 pt page; at base DPI 260 (`scale = 260/72`) that maps to pixel bbox
+~`(615.2, 144.7, 654.3, 187.8)` top-left origin, which the renderer-produced span matches
+within < 0.5 px. Asserted in `test_ingest_pdf.py::test_point_to_pixel_conversion_matches_known_span`.
+
+### Feature + full gate
+
+```
+$ .venv/Scripts/python.exe -m pytest tests/test_ingest_pdf.py tests/test_ingest_images.py \
+    tests/test_ingest_detect.py tests/test_preprocess.py -q
+........................                                                 [100%]
+24 passed
+
+$ .venv/Scripts/python.exe -m ruff check .
+All checks passed!
+
+$ .venv/Scripts/python.exe -m black --check . --line-length 100
+All done! ✨ 🍰 ✨
+60 files would be left unchanged.
+
+$ .venv/Scripts/python.exe -m mypy texora_engine
+Success: no issues found in 38 source files
+
+$ .venv/Scripts/python.exe -m pytest -q
+88 passed, 3 skipped, 4 warnings in 9.76s
+```
+
+PENDING / host-limited (unchanged by FEAT-002): the `@pytest.mark.latex` TeX-compile and
+`@pytest.mark.model` weight-backed tests arrive with later M3 features; CUDA EP remains
+code-review-only on this CPU host. FEAT-002 touches no model, LaTeX, or CUDA path.

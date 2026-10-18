@@ -63,10 +63,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 ## M3 — PDF streaming + layout + text/formula pipeline + MD/LaTeX export
 
-- [ ] **3.1 pypdfium2 ingestion** — render pages (adaptive DPI, small-font raise), image loaders
+- [x] **3.1 pypdfium2 ingestion** — render pages (adaptive DPI, small-font raise), image loaders
   (Pillow/pillow-heif), born-digital vs scanned detection. `dep:1.3` · `req: R-ING-1/2/3` · `done:`
   renders PDF + each image format; DPI auto-raise unit test.
-- [ ] **3.2 Preprocessing** — deskew/denoise/binarize/perspective/auto-crop, each toggleable.
+- [x] **3.2 Preprocessing** — deskew/denoise/binarize/perspective/auto-crop, each toggleable.
   `dep:3.1` · `req: R-ING-4` · `done:` before/after fixtures; toggles respected.
 - [ ] **3.3 Layout adapter + default model** — DocLayout-YOLO region detect; **verify license**,
   mark opt-in if AGPL. `dep:3.1` · `req: R-LAY-1/3, R-LIC-2` · `done:` region types + bboxes on
