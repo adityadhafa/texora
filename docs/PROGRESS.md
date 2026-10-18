@@ -1,8 +1,14 @@
 # Texora — Build Progress Checkpoint
 
-Last updated: 2026-10-18 (M3 FEAT-004) · Milestone: **M3 (PDF pipeline → MD/LaTeX)** ·
+Last updated: 2026-10-18 (M3 FEAT-005) · Milestone: **M3 (PDF pipeline → MD/LaTeX)** ·
 Branch: `feat/m3-pdf-pipeline` (worktree `.worktrees/m3-pdf-pipeline`). NOT merged into `main`.
-M1 and M2 are complete; M3 is in progress on this branch.
+M1 and M2 are complete; M3 tasks 3.1–3.7 are implemented on this branch (engine-side; the headline
+PDF→Markdown/LaTeX flow is runnable + demonstrated). The TeX-compile check is CI-only on hosts
+without a TeX toolchain.
+
+Required engine commands run with the PATH export + the worktree venv
+(`engine/.venv/Scripts/python.exe`), from `engine/`:
+`export PATH="$HOME/.cargo/bin:$LOCALAPPDATA/Programs/Python/Python311:$LOCALAPPDATA/Programs/Python/Python311/Scripts:...:$PATH"`.
 
 ## M3 feature status (tasks 3.1–3.7)
 
@@ -12,7 +18,7 @@ M1 and M2 are complete; M3 is in progress on this branch.
 | FEAT-002 ingest | 3.1 render/load/detect · 3.2 preprocess | **DONE** | `ingest/` package: pypdfium2 render (adaptive DPI + one-shot small-font raise), image loaders incl. HEIC/TIFF, born-digital/scanned detection, toggleable preprocessing. Single point→pixel conversion site. |
 | FEAT-003 layout | 3.3 layout Protocol + default · 3.4 reading order | **DONE** | `layout/` package implemented fresh as ONE coherent API: `LayoutDetector` Protocol + full `RegionType` taxonomy; permissive-only factory (`pp_doclayout_onnx`, Apache-2.0; AGPL `doclayout_yolo` present but unregistered/opt-in); no-model `born_digital` structural detector; pure XY-cut reading order with column + equation-number binding. Catalog pins 3 ONNX models (file names now, URL/SHA pin-on-first-fetch) + Apache-2.0 license rows. Full gate green. |
 | FEAT-004 text + assembler | 3.5 PP-OCRv5 + Tesseract (EN+ID) · 3.6 page assembly + `POST /pages/recognize` | **DONE** | Delivered together as FEAT-004 (tasks 3.5 + 3.6). `TextRecognizer` Protocol (reusing the single `layout.base.BBox`); `pp_ocrv5_onnx` PP-OCRv5 det+rec via ONNX Runtime (DB post-process via shapely+pyclipper, CTC decode via `rec_keys.txt`) + `tesseract` fallback (EN+ID). Single-owning fallback decision in `build_text_recognizer` (full §7.2.1 table covered). `pipeline/` assembler merges ingest→layout→reading-order→recognition into typed `PageResult`/`DocumentResult`, reusing the M2 pix2tex `build_formula_recognizer` UNCHANGED for all math; TABLE/HANDWRITING → `needs_review` (M6). `POST /pages/recognize` bearer-protected (409/422/500 mapping). `shapely`/`pyclipper` pinned + license rows added in this change. Full gate green. |
-| FEAT-006 export | 3.7 Markdown + LaTeX + golden files | pending | Not started. |
+| FEAT-005 export + M3 docs | 3.7 Markdown + LaTeX + golden files | **DONE** | THE HEADLINE OUTPUT. `export/markdown.py` + `export/latex.py` + `export/templates.py`: ordered `InlineRun` interleaving so inline `$...$` lands mid-paragraph (design F5); numbered/unnumbered display math (`$$...$$ \tag{n}` / `equation`/`equation*`); honest TABLE/needs_review markers, never fabricated. Byte-stable golden `.md`/`.tex` from a fixed `DocumentResult` (test data). Real born_digital_math.pdf→Markdown via the real pix2tex engine recorded in `docs/m3-verification.md`. No new runtime dep (stdlib + existing Pydantic). The demo surfaced + fixed a committed born-digital span-ordering bug in the assembler (line-banding, tightly scoped; regression test added). `latexmk` compile is `@pytest.mark.latex` → xfail-skip locally (no TeX toolchain), asserted in CI. Full gate green. |
 
 ### FEAT-003 gate (this change) — all green on this host
 `ruff check .` clean · `black --check . --line-length 100` clean · `mypy texora_engine` clean
@@ -42,6 +48,23 @@ binary are absent — never mocked). Full command output in `docs/m3-verificatio
 - **PP-OCRv5 ONNX weights** — pin-on-first-fetch; the real EN/ID recognition test + the
   pix2tex-backed assembler/API-200 path skip-with-reason until weights are prefetched (never mocked).
 - **CUDA execution provider** — code-review-only on this CPU host; `CPUExecutionProvider` is tested.
+
+### FEAT-005 gate (this change) — all green on this host
+`ruff check .` clean · `black --check . --line-length 100` clean (90 files) ·
+`mypy texora_engine` clean (55 files) · `pytest -q` → **150 passed, 9 skipped, 1 xfailed** (9 skips
+= PP-DocLayout + PP-OCRv5 ONNX weights pin-on-first-fetch + Tesseract binary absent, all
+skip-with-reason; 1 xfail = the `latexmk` compile, no TeX toolchain). The real pix2tex model-gated
+tests PASS (weights prefetched + SHA-256 verified). Full command output + the real PDF→Markdown
+sample in `docs/m3-verification.md` §FEAT-005.
+
+### FEAT-005 PENDING / host-limited (recorded honestly, never claimed passed)
+- **LaTeX `latexmk` compile** — no TeX toolchain on this host; `test_golden_tex_compiles_with_latexmk`
+  xfail-skips with a recorded reason and is NOT deleted/silently passed. The CI `m3-latex-compile`
+  job provisions TinyTeX/texlive and runs the real exit-0 compile no-skip. No compile has run here.
+- **Born-digital layout characteristics** surfaced by the real demo (inter-word spacing from the
+  fixture's space-less show-text ops; two-column text merged by the full-width born-digital paragraph
+  regions) are FEAT-003 born-digital-layout limitations tracked separately — NOT exporter defects and
+  out of FEAT-005's span-ordering scope. The exporter faithfully renders the regions it is given.
 
 ---
 

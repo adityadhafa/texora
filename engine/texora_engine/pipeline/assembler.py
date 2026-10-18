@@ -24,7 +24,10 @@ from typing import TypeVar
 from PIL import Image
 
 from texora_engine.ensemble import validate_and_normalize
-from texora_engine.export import latex_to_mathml
+
+# Import the leaf module directly (not the ``export`` package) so the page-result exporters in
+# ``export`` can depend on ``pipeline`` without a circular import through ``export/__init__``.
+from texora_engine.export.mathml import latex_to_mathml
 from texora_engine.ingest.base import PdfTextSpan, RenderedPage, SourceKind
 from texora_engine.ingest.preprocess import preprocess
 from texora_engine.layout.base import BBox, LayoutDetector, LayoutResult, Region, RegionType
@@ -364,12 +367,55 @@ def _text_region(
     )
 
 
+def _order_spans(spans: list[PdfTextSpan]) -> list[PdfTextSpan]:
+    """Order text-layer spans into reading order: group into line bands, then x within each band.
+
+    Born-digital spans are often per-character, and glyph bbox heights vary (ascenders/descenders)
+    so their y-centers differ by more than a fixed epsilon on the SAME line. Sorting by a rounded
+    y-center then x therefore scrambles a line. Instead we cluster spans into line bands by vertical
+    overlap (greedy over y-sorted spans) and order left-to-right by ``x0`` within each band, which
+    matches the two-level ordering in design §6.5 (runs ordered left-to-right within a line).
+    """
+
+    if not spans:
+        return []
+
+    # Sort by the span top edge so we can greedily grow line bands top-to-bottom.
+    by_top = sorted(spans, key=lambda s: (s.bbox[1], s.bbox[0]))
+    bands: list[list[PdfTextSpan]] = []
+    band_bottoms: list[float] = []
+    for span in by_top:
+        top, bottom = span.bbox[1], span.bbox[3]
+        placed = False
+        for i, band in enumerate(bands):
+            # Same line if the span vertically overlaps the band's running extent enough that its
+            # center sits within the band — robust to differing glyph heights on one line.
+            band_top = min(s.bbox[1] for s in band)
+            band_bottom = band_bottoms[i]
+            overlap = min(bottom, band_bottom) - max(top, band_top)
+            min_h = min(bottom - top, band_bottom - band_top)
+            if min_h > 0 and overlap >= 0.5 * min_h:
+                band.append(span)
+                band_bottoms[i] = max(band_bottom, bottom)
+                placed = True
+                break
+        if not placed:
+            bands.append([span])
+            band_bottoms.append(bottom)
+
+    # Bands top-to-bottom (by their top edge); spans left-to-right within a band.
+    bands.sort(key=lambda b: min(s.bbox[1] for s in b))
+    ordered: list[PdfTextSpan] = []
+    for band in bands:
+        ordered.extend(sorted(band, key=lambda s: s.bbox[0]))
+    return ordered
+
+
 def _text_from_layer(region: Region, rendered: RenderedPage) -> str:
     """Join the born-digital text-layer spans whose centers fall inside ``region.bbox``."""
 
     spans = rendered.text_layer or []
-    inside = [s for s in spans if _span_in_bbox(s, region)]
-    inside.sort(key=lambda s: (round((s.bbox[1] + s.bbox[3]) / 2.0, 1), s.bbox[0]))
+    inside = _order_spans([s for s in spans if _span_in_bbox(s, region)])
     return "".join(s.text for s in inside).strip()
 
 
@@ -389,10 +435,7 @@ def _born_digital_inlines(
 ) -> list[InlineRun]:
     """Split a born-digital block's spans into consecutive TEXT / inline-MATH runs (design §6.5)."""
 
-    spans = sorted(
-        (s for s in (rendered.text_layer or []) if _span_in_bbox(s, region)),
-        key=lambda s: (round((s.bbox[1] + s.bbox[3]) / 2.0, 1), s.bbox[0]),
-    )
+    spans = _order_spans([s for s in (rendered.text_layer or []) if _span_in_bbox(s, region)])
     if not spans:
         return []
 

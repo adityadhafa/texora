@@ -120,6 +120,28 @@ def test_structure_on_born_digital_fixture(tmp_path: Path) -> None:
     assert standalone_inline or inline_runs, "expected inline math recognized on the page"
 
 
+def test_born_digital_span_order_is_not_scrambled() -> None:
+    """Regression: per-character born-digital spans order left-to-right within a line band.
+
+    pdfium emits per-glyph spans whose bbox heights vary (ascenders/descenders), so their
+    y-centers differ on the SAME line. Ordering by a rounded y-center then x scrambled the line
+    (title rendered as "iEMEldnrnnaaaesseceuvqgy"); line-banding then x-order yields the real
+    text. This guards the headline PDF->Markdown prose against silent re-scrambling.
+    """
+
+    from texora_engine.pipeline.assembler import _order_spans
+
+    rendered, image = _first_page()
+    try:
+        spans = rendered.text_layer or []
+        # The title band sits near the top of the page (well above the body columns).
+        title_band = [s for s in spans if s.bbox[1] < 210.0]
+        ordered = "".join(s.text for s in _order_spans(title_band))
+        assert ordered == "EnergyandMassEquivalence"
+    finally:
+        image.close()
+
+
 def test_table_and_handwriting_are_needs_review(tmp_path: Path) -> None:
     rendered, image = _first_page()
     regions = [
