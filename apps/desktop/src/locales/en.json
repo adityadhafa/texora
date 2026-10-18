@@ -16,5 +16,36 @@
       "restarting": "Restarting",
       "stopped": "Stopped"
     }
+  },
+  "snip": {
+    "title": "Formula snip",
+    "copyLatex": "Copy LaTeX",
+    "copyMathml": "Copy MathML",
+    "copyMarkdown": "Copy Markdown",
+    "preview": "Preview",
+    "confidence": "Confidence",
+    "confidenceUnavailable": "Confidence unavailable",
+    "status": {
+      "ok": "Recognized",
+      "needsReview": "Needs review",
+      "failed": "Could not recognize"
+    },
+    "error": {
+      "capture": "Screen capture failed.",
+      "engineNotReady": "Engine is not ready yet.",
+      "timeout": "Recognition timed out."
+    },
+    "close": "Close",
+    "hotkeyHint": "Press Ctrl+Shift+M to capture a formula."
+  },
+  "hardware": {
+    "title": "Hardware",
+    "device": "Device",
+    "selected": "Selected",
+    "cpuSlowNote": "CPU mode works everywhere but is slower than a GPU.",
+    "override": "Change device",
+    "deviceCpu": "CPU",
+    "deviceCuda": "CUDA (NVIDIA GPU)",
+    "deviceMps": "MPS (Apple GPU)"
   }
 }

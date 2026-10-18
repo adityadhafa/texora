@@ -16,5 +16,36 @@
       "restarting": "Memulai ulang",
       "stopped": "Berhenti"
     }
+  },
+  "snip": {
+    "title": "Snip rumus",
+    "copyLatex": "Salin LaTeX",
+    "copyMathml": "Salin MathML",
+    "copyMarkdown": "Salin Markdown",
+    "preview": "Pratinjau",
+    "confidence": "Keyakinan",
+    "confidenceUnavailable": "Keyakinan tidak tersedia",
+    "status": {
+      "ok": "Dikenali",
+      "needsReview": "Perlu ditinjau",
+      "failed": "Tidak dapat dikenali"
+    },
+    "error": {
+      "capture": "Tangkapan layar gagal.",
+      "engineNotReady": "Mesin belum siap.",
+      "timeout": "Pengenalan melebihi batas waktu."
+    },
+    "close": "Tutup",
+    "hotkeyHint": "Tekan Ctrl+Shift+M untuk menangkap rumus."
+  },
+  "hardware": {
+    "title": "Perangkat keras",
+    "device": "Perangkat",
+    "selected": "Terpilih",
+    "cpuSlowNote": "Mode CPU berfungsi di mana saja tetapi lebih lambat daripada GPU.",
+    "override": "Ubah perangkat",
+    "deviceCpu": "CPU",
+    "deviceCuda": "CUDA (GPU NVIDIA)",
+    "deviceMps": "MPS (GPU Apple)"
   }
 }

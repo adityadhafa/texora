@@ -4,10 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import './i18n';
 
-// App renders the live engine status badge, which calls the typed client.
-// Mock the Tauri bridge so the component mounts without a running backend.
+// App renders the live engine status badge + hardware settings, which call the typed client.
+// Mock the Tauri bridge so the component mounts without a running backend. `engine_status`
+// returns a status object; the proxy commands return JSON strings (as the Rust proxy does).
 vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn().mockResolvedValue({ state: 'starting' }),
+  invoke: vi.fn((command: string) => {
+    if (command === 'engine_status') return Promise.resolve({ state: 'starting' });
+    if (command === 'get_hardware')
+      return Promise.resolve(JSON.stringify({ devices: ['cpu'], selected: 'cpu' }));
+    return Promise.resolve('{}');
+  }),
 }));
 vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
