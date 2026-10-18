@@ -36,6 +36,10 @@ _COLUMN_GUTTER_FRAC = 0.06
 # Two regions are on the same horizontal band if their y-centers are within this fraction of
 # page height.
 _SAME_BAND_FRAC = 0.04
+# A region at least this fraction of the page width is a full-width "spanner" (title / centred
+# display equation) that may cross the gutter; it is excluded from gutter detection but still
+# assigned to a column by its x-center.
+_SPANNER_WIDTH_FRAC = 0.6
 
 
 def _detect_columns(regions: list[Region], width: int) -> list[list[Region]]:
@@ -43,14 +47,25 @@ def _detect_columns(regions: list[Region], width: int) -> list[list[Region]]:
 
     Returns a left-to-right list of column region-groups. A single column when no gutter wider
     than the threshold is found.
+
+    The gutter is computed from the column-body regions only (those narrower than
+    ``_SPANNER_WIDTH_FRAC`` of the page), so a full-width title or a centred display equation that
+    legitimately crosses the gutter does not bridge it and hide the columns. When a clean gutter is
+    found, every region (spanners included) is assigned to a column by its x-center. When no gutter
+    is found the page is treated as one column and the recursive XY-cut (which cuts on the widest
+    gap across either axis) separates any title/display band by its horizontal gap on its own.
     """
 
     if not regions or width <= 0:
         return [regions]
 
     gutter = width * _COLUMN_GUTTER_FRAC
-    # Sort region x-intervals by left edge and find gaps between consecutive covered x-ranges.
-    intervals = sorted(((r.bbox.x0, r.bbox.x1) for r in regions), key=lambda iv: iv[0])
+    # Gutter detection uses only non-spanning regions so a full-width title/display line does not
+    # bridge the empty band between columns.
+    body = [r for r in regions if r.bbox.width < width * _SPANNER_WIDTH_FRAC]
+    if not body:
+        return [regions]
+    intervals = sorted(((r.bbox.x0, r.bbox.x1) for r in body), key=lambda iv: iv[0])
     boundaries: list[float] = []
     cur_right = intervals[0][1]
     for left, right in intervals[1:]:
@@ -73,47 +88,69 @@ def _detect_columns(regions: list[Region], width: int) -> list[list[Region]]:
     return [c for c in columns if c]
 
 
-def _xy_cut(regions: list[Region], width: int, height: int) -> list[Region]:
-    """Recursive XY-cut: order ``regions`` top-to-bottom then left-to-right by whitespace gaps.
+def _widest_gap(group: list[Region], horizontal: bool) -> tuple[float, int]:
+    """Widest inter-region whitespace gap on one axis: ``(gap_width, split_index)``.
 
-    Alternates horizontal and vertical cuts on the widest whitespace gap. Terminates when a group
-    has <= 1 region or no cut is found; the base case orders by ``(y0, x0)``.
+    ``horizontal`` scans the y-axis (top-to-bottom bands); otherwise the x-axis (left-to-right
+    columns). ``split_index`` is -1 when the group cannot be cut on this axis.
     """
 
-    def _cut(group: list[Region], horizontal: bool) -> list[Region]:
+    if horizontal:
+        spans = sorted(((r.bbox.y0, r.bbox.y1, r) for r in group), key=lambda t: t[0])
+    else:
+        spans = sorted(((r.bbox.x0, r.bbox.x1, r) for r in group), key=lambda t: t[0])
+
+    best_gap = 0.0
+    best_at = -1
+    cur_end = spans[0][1]
+    for i in range(1, len(spans)):
+        gap = spans[i][0] - cur_end
+        if gap > best_gap:
+            best_gap = gap
+            best_at = i
+        cur_end = max(cur_end, spans[i][1])
+    return best_gap, best_at
+
+
+def _xy_cut(regions: list[Region], width: int, height: int) -> list[Region]:
+    """Recursive XY-cut: order ``regions`` into a top-to-bottom / left-to-right reading sequence.
+
+    At each step the group is cut on the axis with the WIDEST whitespace gap (not a forced
+    alternation): a full-width title band or a centred display-equation band that bridges the
+    column gutter is separated by its large HORIZONTAL gap before the body is cut VERTICALLY into
+    columns, so each column reads top-to-bottom before the next. Terminates when a group has <= 1
+    region or no usable cut remains; the base case orders by ``(y0, x0)``. Horizontal cuts order
+    top block before bottom; vertical cuts order left block before right.
+    """
+
+    min_h_gap = height * 0.01
+    min_v_gap = width * 0.01
+
+    def _cut(group: list[Region]) -> list[Region]:
         if len(group) <= 1:
             return list(group)
 
-        # Try a cut along the requested axis on the widest inter-region whitespace gap.
-        if horizontal:
-            spans = sorted(((r.bbox.y0, r.bbox.y1, r) for r in group), key=lambda t: t[0])
-        else:
-            spans = sorted(((r.bbox.x0, r.bbox.x1, r) for r in group), key=lambda t: t[0])
+        h_gap, h_at = _widest_gap(group, horizontal=True)
+        v_gap, v_at = _widest_gap(group, horizontal=False)
 
-        best_gap = 0.0
-        best_at = -1
-        cur_end = spans[0][1]
-        for i in range(1, len(spans)):
-            start = spans[i][0]
-            gap = start - cur_end
-            if gap > best_gap:
-                best_gap = gap
-                best_at = i
-            cur_end = max(cur_end, spans[i][1])
-
-        min_gap = (height if horizontal else width) * 0.01
-        if best_at == -1 or best_gap <= min_gap:
-            # No usable cut on this axis: try the other axis, else settle on (y0, x0).
-            if horizontal:
-                return _cut(group, horizontal=False)
+        h_ok = h_at != -1 and h_gap > min_h_gap
+        v_ok = v_at != -1 and v_gap > min_v_gap
+        if not h_ok and not v_ok:
             return sorted(group, key=lambda r: (r.bbox.y0, r.bbox.x0))
 
-        first = [t[2] for t in spans[:best_at]]
-        second = [t[2] for t in spans[best_at:]]
-        # Recurse alternating the axis; first block (top/left) precedes the second.
-        return _cut(first, not horizontal) + _cut(second, not horizontal)
+        # Cut on whichever axis has the wider gap; horizontal wins ties (reading flows down first).
+        horizontal = h_ok and (not v_ok or h_gap >= v_gap)
+        split_at = h_at if horizontal else v_at
+        if horizontal:
+            ordered = sorted(group, key=lambda r: r.bbox.y0)
+        else:
+            ordered = sorted(group, key=lambda r: r.bbox.x0)
 
-    return _cut(list(regions), horizontal=True)
+        first = ordered[:split_at]
+        second = ordered[split_at:]
+        return _cut(first) + _cut(second)
+
+    return _cut(list(regions))
 
 
 def _bind_equation_numbers(ordered: list[Region], height: int) -> list[Region]:

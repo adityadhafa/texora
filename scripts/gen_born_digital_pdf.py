@@ -74,9 +74,13 @@ def build_content_stream() -> bytes:
     ops.append(_text_op(right_x, 668, 11, "large, a small mass maps to a", font="F1"))
     ops.append(_text_op(right_x, 652, 11, "very large rest energy.", font="F1"))
 
-    # Numbered display equation (centred, Times-Italic) with a right-margin number.
-    ops.append(_text_op(250, 560, 14, "E = m c^2", font="F3"))
-    ops.append(_text_op(540, 560, 11, "(1)", font="F1"))
+    # Numbered display equation (centred, Times-Italic) with a right-margin number. Drawn at a
+    # large uniform font on a single baseline so the rasterised crop fed to the formula recognizer
+    # has clear, well-separated glyphs (a tiny glyph image is a poor formula input — see
+    # docs/m3-verification.md, R-QA-2). Uniform glyph heights keep the born-digital line clusterer
+    # from splitting the equation into stray regions.
+    ops.append(_text_op(250, 560, 24, "E = mc2", font="F3"))
+    ops.append(_text_op(540, 566, 11, "(1)", font="F1"))
 
     return "".join(ops).encode("latin-1")
 

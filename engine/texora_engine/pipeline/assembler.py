@@ -31,7 +31,11 @@ from texora_engine.export.mathml import latex_to_mathml
 from texora_engine.ingest.base import PdfTextSpan, RenderedPage, SourceKind
 from texora_engine.ingest.preprocess import preprocess
 from texora_engine.layout.base import BBox, LayoutDetector, LayoutResult, Region, RegionType
-from texora_engine.layout.born_digital import BornDigitalLayoutDetector, span_is_mathish
+from texora_engine.layout.born_digital import (
+    BornDigitalLayoutDetector,
+    join_spans_with_spaces,
+    span_is_mathish,
+)
 from texora_engine.layout.reading_order import order as order_regions
 from texora_engine.logging_config import get_logger
 from texora_engine.pipeline.page_result import (
@@ -191,6 +195,17 @@ def _run_region(
         return _figure_region(region, rendered, image, deps)
     if region.type == RegionType.EQUATION_NUMBER:
         return _equation_number_region(region, rendered)
+    # A born-digital INLINE_MATH region is a PROSE line that merely carries an inline formula
+    # (design §6.5). Route it through the text path so only the formula sub-crop goes to pix2tex
+    # and the surrounding words stay as text runs — recognizing the whole line as one formula
+    # crop garbles the prose. A standalone DISPLAY_MATH block still goes to the math path, and a
+    # scanned/model page (no text layer) keeps the whole-crop math behaviour.
+    if (
+        region.type == RegionType.INLINE_MATH
+        and rendered.kind == SourceKind.PDF_BORN_DIGITAL
+        and rendered.text_layer is not None
+    ):
+        return _text_region(region, rendered, image, deps, executor)
     if region.type in _MATH_TYPES:
         return _math_region(region, image, deps, executor)
     if region.type in _TEXT_ISH:
@@ -367,20 +382,18 @@ def _text_region(
     )
 
 
-def _order_spans(spans: list[PdfTextSpan]) -> list[PdfTextSpan]:
-    """Order text-layer spans into reading order: group into line bands, then x within each band.
+def _band_spans(spans: list[PdfTextSpan]) -> list[list[PdfTextSpan]]:
+    """Group spans into line bands (top-to-bottom), each span-list ordered left-to-right by ``x0``.
 
-    Born-digital spans are often per-character, and glyph bbox heights vary (ascenders/descenders)
-    so their y-centers differ by more than a fixed epsilon on the SAME line. Sorting by a rounded
-    y-center then x therefore scrambles a line. Instead we cluster spans into line bands by vertical
-    overlap (greedy over y-sorted spans) and order left-to-right by ``x0`` within each band, which
-    matches the two-level ordering in design §6.5 (runs ordered left-to-right within a line).
+    Born-digital spans are per-character and glyph bbox heights vary (ascenders/descenders) so
+    their y-centers differ on the SAME line. Sorting by a rounded y-center then x scrambles a line.
+    We greedily cluster spans into line bands by >=50% vertical overlap (design §6.5), order bands
+    top-to-bottom, and order spans left-to-right within each band.
     """
 
     if not spans:
         return []
 
-    # Sort by the span top edge so we can greedily grow line bands top-to-bottom.
     by_top = sorted(spans, key=lambda s: (s.bbox[1], s.bbox[0]))
     bands: list[list[PdfTextSpan]] = []
     band_bottoms: list[float] = []
@@ -403,20 +416,31 @@ def _order_spans(spans: list[PdfTextSpan]) -> list[PdfTextSpan]:
             bands.append([span])
             band_bottoms.append(bottom)
 
-    # Bands top-to-bottom (by their top edge); spans left-to-right within a band.
     bands.sort(key=lambda b: min(s.bbox[1] for s in b))
+    return [sorted(band, key=lambda s: s.bbox[0]) for band in bands]
+
+
+def _order_spans(spans: list[PdfTextSpan]) -> list[PdfTextSpan]:
+    """Flatten text-layer spans into reading order (bands top-to-bottom, x within each band)."""
+
     ordered: list[PdfTextSpan] = []
-    for band in bands:
-        ordered.extend(sorted(band, key=lambda s: s.bbox[0]))
+    for band in _band_spans(spans):
+        ordered.extend(band)
     return ordered
 
 
 def _text_from_layer(region: Region, rendered: RenderedPage) -> str:
-    """Join the born-digital text-layer spans whose centers fall inside ``region.bbox``."""
+    """Join born-digital spans inside ``region.bbox`` with gap-based word + line spacing.
+
+    Within each line band, spans join via :func:`join_spans_with_spaces` (a space on a word-sized
+    horizontal gap, since pdfium drops space glyphs); bands join with a single space so wrapped
+    lines of one paragraph read as continuous prose.
+    """
 
     spans = rendered.text_layer or []
-    inside = _order_spans([s for s in spans if _span_in_bbox(s, region)])
-    return "".join(s.text for s in inside).strip()
+    inside = [s for s in spans if _span_in_bbox(s, region)]
+    lines = [join_spans_with_spaces(band) for band in _band_spans(inside)]
+    return " ".join(line for line in lines if line).strip()
 
 
 def _span_in_bbox(span: PdfTextSpan, region: Region) -> bool:
@@ -450,7 +474,10 @@ def _born_digital_inlines(
         if buffer_math:
             runs.append(_inline_math_run(buffer, image, deps, executor))
         else:
-            text = "".join(s.text for s in buffer).strip()
+            # Gap-based word spacing within each line band, bands joined by a space, so a wrapped
+            # text run reads as continuous prose rather than jammed glyphs.
+            lines = [join_spans_with_spaces(band) for band in _band_spans(buffer)]
+            text = " ".join(line for line in lines if line).strip()
             if text:
                 runs.append(InlineRun(kind=RunKind.TEXT, text=text, engine_id="born_digital"))
         buffer = []

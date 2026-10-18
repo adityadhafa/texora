@@ -80,6 +80,76 @@ def test_inline_math_inside_text_line() -> None:
     assert any(r.type == RegionType.INLINE_MATH for r in result.regions)
 
 
+def _char_spans(text: str, x0: float, y0: float, size: float, mathish: bool = False):
+    """Build per-character spans for ``text`` starting at ``x0`` (approximating pdfium output).
+
+    Glyphs are ``0.55*size`` wide with ``0.12*size`` inter-letter gaps and a wider ``0.55*size``
+    gap for an explicit space, so word boundaries are recoverable from geometry alone — the same
+    signal the gap-based spacing + column split rely on. Space characters are dropped (pdfium does
+    not emit them), only their positioning advance is kept.
+    """
+
+    spans: list[PdfTextSpan] = []
+    x = x0
+    glyph_w = 0.55 * size
+    letter_gap = 0.12 * size
+    space_gap = 0.55 * size
+    for ch in text:
+        if ch == " ":
+            x += space_gap
+            continue
+        spans.append(_span(ch, (x, y0, x + glyph_w, y0 + size), size, mathish=mathish))
+        x += glyph_w + letter_gap
+    return spans
+
+
+def test_two_column_body_splits_into_separate_regions() -> None:
+    """A left- and right-column line on the SAME y-band become two regions, not one spanner.
+
+    Built from per-character spans (pdfium's real primitive) at two x-origins separated by a wide
+    gutter. The detector must split at the gutter so no body region straddles it (otherwise
+    reading order interleaves the columns).
+    """
+
+    spans: list[PdfTextSpan] = []
+    for row, (left, right) in enumerate(
+        [
+            ("the left column text", "the right column text"),
+            ("continues down here", "continues over here"),
+            ("and ends at the foot", "and ends on this side"),
+        ]
+    ):
+        y = 200.0 + row * 60.0
+        spans += _char_spans(left, 60.0, y, 11.0)
+        spans += _char_spans(right, 560.0, y, 11.0)
+
+    result = BornDigitalLayoutDetector().detect(
+        Image.new("RGB", (1000, 1400), "white"), _page(spans)
+    )
+    # Every region sits entirely in the left OR the right column — none straddles the gutter.
+    gutter_x = 500.0
+    for r in result.regions:
+        assert r.bbox.x1 <= gutter_x or r.bbox.x0 >= gutter_x, (r.bbox.x0, r.bbox.x1)
+    # There are at least two regions on at least one shared y-band (the split happened).
+    assert len(result.regions) >= 6
+
+
+def test_per_character_equation_number_is_peeled() -> None:
+    """A right-margin per-character ``(``,``1``,``)`` run is peeled into an EQUATION_NUMBER."""
+
+    spans = _char_spans("E = mc2", 400.0, 300.0, 20.0, mathish=True)
+    # The "(1)" sits far to the right after a wide gutter-sized gap, as per-character spans.
+    spans += _char_spans("(1)", 900.0, 305.0, 11.0)
+    result = BornDigitalLayoutDetector().detect(
+        Image.new("RGB", (1000, 1400), "white"), _page(spans)
+    )
+    types = [r.type for r in result.regions]
+    assert RegionType.EQUATION_NUMBER in types
+    # The equation body region must NOT contain the "(1)" glyphs.
+    non_eqnum = [r for r in result.regions if r.type != RegionType.EQUATION_NUMBER]
+    assert non_eqnum and all(r.bbox.x1 < 900.0 for r in non_eqnum)
+
+
 def test_empty_text_layer_yields_no_regions() -> None:
     detector = BornDigitalLayoutDetector()
     image = Image.new("RGB", (1000, 1400), "white")

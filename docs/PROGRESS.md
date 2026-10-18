@@ -1,6 +1,6 @@
 # Texora — Build Progress Checkpoint
 
-Last updated: 2026-10-18 (M3 FEAT-005) · Milestone: **M3 (PDF pipeline → MD/LaTeX)** ·
+Last updated: 2026-10-18 (M3 convergence) · Milestone: **M3 (PDF pipeline → MD/LaTeX)** ·
 Branch: `feat/m3-pdf-pipeline` (worktree `.worktrees/m3-pdf-pipeline`). NOT merged into `main`.
 M1 and M2 are complete; M3 tasks 3.1–3.7 are implemented on this branch (engine-side; the headline
 PDF→Markdown/LaTeX flow is runnable + demonstrated). The TeX-compile check is CI-only on hosts
@@ -63,8 +63,28 @@ sample in `docs/m3-verification.md` §FEAT-005.
   job provisions TinyTeX/texlive and runs the real exit-0 compile no-skip. No compile has run here.
 - **Born-digital layout characteristics** surfaced by the real demo (inter-word spacing from the
   fixture's space-less show-text ops; two-column text merged by the full-width born-digital paragraph
-  regions) are FEAT-003 born-digital-layout limitations tracked separately — NOT exporter defects and
-  out of FEAT-005's span-ordering scope. The exporter faithfully renders the regions it is given.
+  regions) were FEAT-003 born-digital-layout limitations — **now FIXED in convergence** (see below).
+
+### Convergence (this change) — born-digital prose quality fixed
+The two born-digital demo defects above are resolved (M3 is under active development; in-scope):
+- **Word spacing** — pdfium drops space glyphs, so the per-character text layer had none. A shared
+  `join_spans_with_spaces` helper now inserts spaces on word-sized horizontal gaps; prose reads
+  correctly ("In special relativity the energy of a", "light in vacuum.").
+- **Column reading order** — the born-digital detector now clusters lines by vertical overlap,
+  detects the page's persistent column gutter from per-line glyph coverage, and splits each band at
+  the gutter; `reading_order._xy_cut` cuts on the widest-gap axis so a title / centred display band
+  is separated before the body is cut into columns. The two-column body now reads the LEFT column
+  fully, then the RIGHT.
+- A born-digital `INLINE_MATH` region (prose + one inline formula) is routed through the inline-run
+  path so only the formula sub-crop goes to pix2tex and the prose stays as text.
+- **Formula LaTeX quality** remains bounded by the provisional pix2tex default on small synthetic
+  crops — reported honestly, never hand-corrected; a benchmark-chosen higher-accuracy formula model
+  is the **M7 decision (R-QA-2)**.
+
+Gate: `ruff`/`black`/`mypy` clean · `pytest -q` → **154 passed, 9 skipped, 1 xfailed** (+4 tests:
+two assembler prose/column regressions, two born-digital detector column/eqnum regressions). The
+improved real PDF→Markdown sample + full command output are in `docs/m3-verification.md`
+§Convergence.
 
 ---
 

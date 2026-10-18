@@ -142,6 +142,46 @@ def test_born_digital_span_order_is_not_scrambled() -> None:
         image.close()
 
 
+def test_born_digital_prose_is_word_spaced(tmp_path: Path) -> None:
+    """Regression: born-digital prose reads as properly spaced words, not jammed glyphs.
+
+    pdfium's text layer is per-character and drops space glyphs, so a naive join yields
+    "Inspecialrelativitytheenergyofa". Gap-based spacing (``join_spans_with_spaces``) must restore
+    word boundaries: the title and the opening left-column sentence read correctly.
+    """
+
+    rendered, image = _first_page()
+    page = assemble_page(rendered, image, _deps(tmp_path))
+
+    texts = [c.text for c in page.contents if c.text]
+    assert "Energy and Mass Equivalence" in texts
+    # The opening left-column sentence reads with spaces (no inter-column bleed, no jammed words).
+    assert any("In special relativity the energy of a" == t for t in texts), texts
+
+
+def test_born_digital_columns_read_left_then_right(tmp_path: Path) -> None:
+    """Regression: the two-column body reads the LEFT column fully, then the RIGHT column.
+
+    The old path merged left+right column text on each y-band into one region, so reading order
+    interleaved the columns ("...energy of a The constant c is the speed of"). Column-aware line
+    splitting + widest-gap XY-cut must now yield each column as a contiguous run.
+    """
+
+    rendered, image = _first_page()
+    page = assemble_page(rendered, image, _deps(tmp_path))
+
+    texts = [c.text for c in page.contents if c.text]
+    joined = "\n".join(texts)
+    # Left-column fragments appear, in order, before any right-column fragment.
+    left_last = texts.index(next(t for t in texts if "single quantity" in t))
+    right_first = texts.index(next(t for t in texts if "constant c is the speed" in t))
+    assert left_last < right_first, joined
+    # And the left column is not interleaved with the right on a single line.
+    assert not any(
+        "energy of a" in t and "constant c" in t for t in texts
+    ), f"columns interleaved on one line: {joined}"
+
+
 def test_table_and_handwriting_are_needs_review(tmp_path: Path) -> None:
     rendered, image = _first_page()
     regions = [
