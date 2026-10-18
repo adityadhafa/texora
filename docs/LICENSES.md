@@ -121,6 +121,10 @@ update the row.
 | rand        | 0.8.8   | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | 256-bit session token generation (`rand::rngs::OsRng`). |
 | ureq        | 2.12.1  | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Lightweight blocking HTTP client for the supervisor `/healthz` probe (chosen over `reqwest`: no async TLS stack needed for loopback HTTP). |
 | tauri-plugin-shell | 2.5.0 | crates.io | MIT OR Apache-2.0 | Yes       | Yes          | Official Tauri sidecar/process spawn (handles externalBin `-$TARGET_TRIPLE` resolution). |
+| tauri-plugin-global-shortcut | 2.4.1 | crates.io | MIT OR Apache-2.0 | Yes | Yes     | Rust side of the global-shortcut plugin; registers the Ctrl+Shift+M snip hotkey. Resolved to 2.4.1 (latest 2.x) from the `2.3.0` floor matching the JS plugin line. |
+| xcap        | 0.9.8   | crates.io | Apache-2.0         | Yes          | Yes          | Cross-platform monitor capture for the snip region grab (Windows/macOS/Linux). |
+| image       | 0.25.10 | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Transitive (xcap) — PNG encode of the captured region. |
+| global-hotkey | 0.8.0 | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Transitive (tauri-plugin-global-shortcut) — OS hotkey registration. |
 
 ## Deferred / opt-in only
 

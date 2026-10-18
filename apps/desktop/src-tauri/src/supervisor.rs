@@ -86,10 +86,28 @@ impl Default for EngineStatus {
     }
 }
 
-/// Managed Tauri state holding the latest known engine status.
-#[derive(Default)]
+/// Managed Tauri state holding the latest known engine status plus the live loopback
+/// `port` and session `token`. The token/port stay in Rust and are NEVER handed to the
+/// webview — JS reaches the engine only through the authenticated proxy commands.
 pub struct SupervisorState {
     status: Mutex<EngineStatus>,
+    /// Live loopback port of the currently-healthy engine (None until healthy).
+    port: Mutex<Option<u16>>,
+    /// Per-session bearer token minted once by `start`.
+    token: Mutex<String>,
+    /// Set of model ids with an in-flight download poll (so duplicate polls are avoided).
+    downloads: Mutex<std::collections::HashSet<String>>,
+}
+
+impl Default for SupervisorState {
+    fn default() -> Self {
+        Self {
+            status: Mutex::new(EngineStatus::default()),
+            port: Mutex::new(None),
+            token: Mutex::new(String::new()),
+            downloads: Mutex::new(std::collections::HashSet::new()),
+        }
+    }
 }
 
 impl SupervisorState {
@@ -107,6 +125,124 @@ impl SupervisorState {
             .lock()
             .expect("supervisor status mutex poisoned");
         *guard = status;
+    }
+
+    /// Store the session token (called once at startup).
+    pub fn set_token(&self, token: &str) {
+        *self.token.lock().expect("token mutex poisoned") = token.to_string();
+    }
+
+    /// Record the live port when the engine becomes healthy (or clear it when not).
+    pub fn set_port(&self, port: Option<u16>) {
+        *self.port.lock().expect("port mutex poisoned") = port;
+    }
+
+    /// Current live port, if the engine is healthy.
+    pub fn port(&self) -> Option<u16> {
+        *self.port.lock().expect("port mutex poisoned")
+    }
+
+    /// Current session token.
+    pub fn token(&self) -> String {
+        self.token.lock().expect("token mutex poisoned").clone()
+    }
+
+    /// Register an in-flight download; returns false if already registered.
+    pub fn begin_download(&self, id: &str) -> bool {
+        self.downloads
+            .lock()
+            .expect("downloads mutex poisoned")
+            .insert(id.to_string())
+    }
+
+    /// Remove a download from the in-flight set (on a terminal state).
+    pub fn end_download(&self, id: &str) {
+        self.downloads
+            .lock()
+            .expect("downloads mutex poisoned")
+            .remove(id);
+    }
+}
+
+/// Error from the authenticated engine proxy.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProxyError {
+    pub kind: String,
+    pub message: String,
+}
+
+impl ProxyError {
+    fn not_ready() -> Self {
+        Self {
+            kind: "engineNotReady".to_string(),
+            message: "engine is not healthy yet".to_string(),
+        }
+    }
+
+    fn http(status: u16, message: String) -> Self {
+        Self {
+            kind: format!("http{status}"),
+            message,
+        }
+    }
+
+    fn transport(message: String) -> Self {
+        Self {
+            kind: "transport".to_string(),
+            message,
+        }
+    }
+}
+
+/// Build the base URL for the live engine port, or an error if not ready.
+fn engine_base_url(port: Option<u16>) -> Result<String, ProxyError> {
+    match port {
+        Some(p) => Ok(format!("http://127.0.0.1:{p}")),
+        None => Err(ProxyError::not_ready()),
+    }
+}
+
+/// Make an authenticated request to the engine and return the response body bytes.
+///
+/// The bearer token + port are read from `SupervisorState` and never cross into JS. A `GET`
+/// is issued when `body` is `None`; otherwise a `POST` with a JSON body.
+pub fn engine_request(
+    state: &SupervisorState,
+    method: &str,
+    path: &str,
+    body: Option<&str>,
+) -> Result<String, ProxyError> {
+    let base = engine_base_url(state.port())?;
+    let token = state.token();
+    if token.is_empty() {
+        return Err(ProxyError::not_ready());
+    }
+    let url = format!("{base}{path}");
+    let agent = ureq::AgentBuilder::new()
+        .timeout(Duration::from_secs(120))
+        .build();
+    let auth = format!("Bearer {token}");
+
+    let result = if method.eq_ignore_ascii_case("post") {
+        let req = agent.post(&url).set("Authorization", &auth);
+        match body {
+            Some(b) => req.set("Content-Type", "application/json").send_string(b),
+            None => req.call(),
+        }
+    } else {
+        agent.get(&url).set("Authorization", &auth).call()
+    };
+
+    match result {
+        Ok(resp) => resp
+            .into_string()
+            .map_err(|e| ProxyError::transport(e.to_string())),
+        Err(ureq::Error::Status(code, resp)) => {
+            let detail = resp.into_string().unwrap_or_default();
+            Err(ProxyError::http(code, detail))
+        }
+        Err(e) => Err(ProxyError::transport(e.to_string())),
     }
 }
 
@@ -264,6 +400,9 @@ fn spawn_engine<R: Runtime>(
 /// is minted once per session; a fresh free port is picked for each spawn.
 pub fn start<R: Runtime>(app: AppHandle<R>) {
     let token = generate_token();
+    if let Some(state) = app.try_state::<SupervisorState>() {
+        state.set_token(&token);
+    }
 
     tauri::async_runtime::spawn(async move {
         let mut backoff = BackoffSchedule::default();
@@ -340,6 +479,9 @@ pub fn start<R: Runtime>(app: AppHandle<R>) {
 
             if healthy {
                 backoff.reset();
+                if let Some(state) = app.try_state::<SupervisorState>() {
+                    state.set_port(Some(port));
+                }
                 publish(
                     &app,
                     EngineStatus::new(EngineState::Healthy, Some(port), None),
@@ -371,7 +513,11 @@ pub fn start<R: Runtime>(app: AppHandle<R>) {
                 let _ = child.kill();
             }
 
-            // The engine exited or never came up: schedule a backoff restart.
+            // The engine exited or never came up: clear the live port and schedule a
+            // backoff restart so the proxy reports "engine not ready" until it recovers.
+            if let Some(state) = app.try_state::<SupervisorState>() {
+                state.set_port(None);
+            }
             publish(
                 &app,
                 EngineStatus::new(
@@ -385,6 +531,63 @@ pub fn start<R: Runtime>(app: AppHandle<R>) {
                 .await
                 .ok();
         }
+    });
+}
+
+/// Event name for model-download progress updates.
+pub const MODEL_PROGRESS_EVENT: &str = "engine://model-progress";
+
+/// Interval between `GET /models/{id}` polls while a download is in flight.
+const MODEL_POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+/// Terminal model-download states that stop the poller.
+fn is_terminal_model_state(json: &str) -> bool {
+    // Cheap substring check on the serialized state; the engine controls the vocabulary.
+    json.contains("\"state\":\"ready\"")
+        || json.contains("\"state\":\"corrupt\"")
+        || json.contains("\"state\":\"error\"")
+}
+
+/// Start polling `GET /models/{id}` every 500 ms, emitting `engine://model-progress` with
+/// the raw `ModelProgress` JSON, until a terminal state is observed (ready/corrupt/error)
+/// or the engine becomes unreachable (surfaced as a synthetic error payload).
+pub fn start_model_poll<R: Runtime>(app: AppHandle<R>, id: String) {
+    let Some(state) = app.try_state::<SupervisorState>() else {
+        return;
+    };
+    if !state.begin_download(&id) {
+        return; // already polling this id
+    }
+
+    tauri::async_runtime::spawn(async move {
+        loop {
+            let poll = {
+                let st = app.state::<SupervisorState>();
+                engine_request(&st, "GET", &format!("/models/{id}"), None)
+            };
+            match poll {
+                Ok(body) => {
+                    let _ = app.emit(MODEL_PROGRESS_EVENT, body.clone());
+                    if is_terminal_model_state(&body) {
+                        break;
+                    }
+                }
+                Err(err) => {
+                    // Engine unreachable mid-download: surface an error payload and stop so
+                    // the UI never hangs on a dead download.
+                    let payload = format!(
+                        "{{\"id\":\"{id}\",\"state\":\"error\",\"bytesReceived\":0,\
+                         \"bytesTotal\":0,\"files\":[],\"detail\":\"{}\"}}",
+                        err.message.replace('"', "'")
+                    );
+                    let _ = app.emit(MODEL_PROGRESS_EVENT, payload);
+                    break;
+                }
+            }
+            tokio::time::sleep(MODEL_POLL_INTERVAL).await;
+        }
+        let st = app.state::<SupervisorState>();
+        st.end_download(&id);
     });
 }
 
@@ -481,5 +684,75 @@ mod tests {
         assert!(json.contains("\"port\":1234"));
         // `detail: None` is skipped.
         assert!(!json.contains("detail"));
+    }
+
+    #[test]
+    fn engine_request_not_ready_without_port() {
+        let state = SupervisorState::default();
+        state.set_token("deadbeef");
+        // No port set -> not ready.
+        let err = engine_request(&state, "GET", "/hardware", None).unwrap_err();
+        assert_eq!(err.kind, "engineNotReady");
+    }
+
+    #[test]
+    fn engine_request_not_ready_without_token() {
+        let state = SupervisorState::default();
+        state.set_port(Some(12345));
+        // Port but no token -> still not ready (token must be present).
+        let err = engine_request(&state, "GET", "/hardware", None).unwrap_err();
+        assert_eq!(err.kind, "engineNotReady");
+    }
+
+    #[test]
+    fn engine_request_reaches_stub_with_bearer() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        // A one-shot stub server that records the request line + Authorization header.
+        let listener = TcpListener::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let handle = std::thread::spawn(move || {
+            let (mut sock, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 2048];
+            let n = sock.read(&mut buf).unwrap();
+            let req = String::from_utf8_lossy(&buf[..n]).to_string();
+            let body = "{\"ok\":true}";
+            let resp = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nContent-Type: application/json\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            sock.write_all(resp.as_bytes()).unwrap();
+            req
+        });
+
+        let state = SupervisorState::default();
+        state.set_token("secret-token");
+        state.set_port(Some(port));
+        let out = engine_request(&state, "GET", "/hardware", None).unwrap();
+        assert!(out.contains("\"ok\":true"));
+
+        let req = handle.join().unwrap();
+        assert!(req.starts_with("GET /hardware "));
+        assert!(req.contains("Authorization: Bearer secret-token"));
+    }
+
+    #[test]
+    fn terminal_model_state_detection() {
+        assert!(is_terminal_model_state("{\"state\":\"ready\"}"));
+        assert!(is_terminal_model_state("{\"state\":\"corrupt\"}"));
+        assert!(is_terminal_model_state("{\"state\":\"error\"}"));
+        assert!(!is_terminal_model_state("{\"state\":\"downloading\"}"));
+        assert!(!is_terminal_model_state("{\"state\":\"verifying\"}"));
+    }
+
+    #[test]
+    fn download_registry_dedupes() {
+        let state = SupervisorState::default();
+        assert!(state.begin_download("pix2tex"));
+        assert!(!state.begin_download("pix2tex"));
+        state.end_download("pix2tex");
+        assert!(state.begin_download("pix2tex"));
     }
 }
