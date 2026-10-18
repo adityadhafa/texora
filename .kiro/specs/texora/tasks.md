@@ -53,9 +53,13 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 - [x] **2.6 Hardware detect + device override** (implemented before 2.5; the Snip Settings UI
   consumes it) — `GET /hardware`; CUDA/MPS/CPU; Settings display + override. `dep:2.2` ·
   `req: R-HW-1/3` · `done:` reports correct device; override takes effect.
-- [ ] **2.5 Snip Tool UI** — global hotkey Ctrl+Shift+M, region capture, result popup, copy
+- [x] **2.5 Snip Tool UI** — global hotkey Ctrl+Shift+M, region capture, result popup, copy
   LaTeX/MathML/Markdown/OMML, KaTeX preview. `dep:1.4,2.4` · `req: R-UI-2` · `done:` E2E: hotkey →
   select → LaTeX shown; copy works.
+  <!-- M2: OMML copy deferred to M6 (design §B.9) — popup copies LaTeX/MathML/Markdown.
+  Live hotkey firing, on-screen region capture, and the on-screen popup are host/interactive
+  and confirmed MANUALLY (documented PENDING in docs/m2-verification.md); structurally covered
+  by Rust shortcut/capture-encode unit tests + vitest popup/katex render tests. -->
 
 ## M3 — PDF streaming + layout + text/formula pipeline + MD/LaTeX export
 

@@ -281,3 +281,55 @@ clean (32 source files).
 Note: a thread-shared SQLite connection is opened with `check_same_thread=False` because
 FastAPI runs sync routes in a worker threadpool (single-user loopback engine; WAL + the
 per-connection lock keep access safe).
+
+---
+
+## JS→engine transport (items 19–20) + Snip UI (task 2.5) + hardware UI (consumes 2.6)
+
+### Transport (Rust) — token/port stay in Rust
+
+`SupervisorState` now holds the live `port` + session `token`; `engine_request` builds an
+authenticated `ureq` request (`Authorization: Bearer <token>`) against the live port and
+returns a typed `engineNotReady` error when the engine is not healthy. New thin proxy
+commands (`recognize_snip`/`get_hardware`/`set_device`/`model_status`/`model_download`) are
+registered in `generate_handler!`; the webview never receives the port or token. The
+model-download poller polls `GET /models/{id}` every 500 ms, emits `engine://model-progress`,
+and stops on a terminal state. `snip.rs` registers Ctrl+Shift+M and captures via `xcap` →
+PNG → base64 → `engine://snip-captured`. `capabilities/default.json` adds the global-shortcut
+allow entries (no network capability — HTTP stays in Rust).
+
+### Frontend (vitest) — engineClient is the sole bridge importer; NO fetch
+
+```
+### pnpm --filter desktop test -- --run
+Test Files  8 passed (8)
+     Tests  33 passed (33)
+### pnpm --filter desktop lint   -> clean (0 errors, 0 warnings)
+### pnpm --filter desktop build  -> built (KaTeX fonts bundled)
+```
+
+- `engineClient.test.ts`: each wrapper invokes the right command / listens on the right
+  event (bridge mocked); snake_case→camelCase mapping asserted.
+- `bridgeInvariant.test.ts`: grep-style — `engineClient.ts` is the ONLY production module
+  importing `@tauri-apps/api`, and no production module calls `fetch()` (AC-8 invariant).
+- `locales.test.ts`: id.json / en.json key sets are identical; M2 `snip.*`/`hardware.*` keys
+  present; `snip.copyOmml` absent (OMML is M6).
+- `SnipPopup.test.tsx`: renders LaTeX + copy buttons from i18next; **real-katex preview**
+  renders a `.katex` root; **confidence-unavailable** state shown; failed result renders the
+  could-not-recognize message (never fabricated LaTeX); Markdown copy wraps `$$…$$`; Esc
+  closes.
+- `katexRender.test.ts`: the authoritative real-`katex` render — valid LaTeX renders without
+  ParseError; invalid LaTeX throws (AC-5 UI side).
+- `SettingsHardware.test.tsx`: renders devices + the CPU-slower note; changing the select
+  calls `setDevice`.
+
+### Rust (cargo) — recorded in the Phase 9 section once the gate runs.
+
+### PENDING MANUAL (host/interactive) — NOT claimed as passed
+
+- Global hotkey **Ctrl+Shift+M** actually firing in a running `tauri dev` window.
+- Live on-screen **screen-region capture** + OS screen-capture permission.
+- The **on-screen popup** appearing over the desktop.
+- **CPU snip latency** as a user-perceived number (the ≤1.5 s R-UI-2 target is a GPU target;
+  the adoption-time CPU inference was load≈1.26 s + infer≈0.84 s on the fixture, measured, not
+  asserted as the UI latency).
