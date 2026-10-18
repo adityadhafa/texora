@@ -67,6 +67,7 @@ update the row.
 |---------------------------|---------|-----------|-------------------------------------------|--------------|--------------|-------|
 | pyinstaller               | 6.22.3  | PyPI      | GPL-2.0-or-later WITH Bootloader-exception | Yes          | Yes          | The bootloader exception explicitly permits shipping the frozen app under any license; PyInstaller itself is a build tool, not linked into the engine. |
 | pyinstaller-hooks-contrib | 2026.8  | PyPI      | Apache-2.0 AND GPL-2.0-or-later           | Yes          | Yes          | Hook collection used by PyInstaller at build time. Not shipped. |
+| pefile                    | 2024.8.26 | PyPI    | MIT                                       | Yes          | Yes          | Transitive (PyInstaller). Used directly in `scripts/build_engine.py` only to finish the Windows PE build-timestamp/checksum fix-up via temp+replace (works around the large-onefile `OSError 22`). Build-time only, not shipped. |
 
 ## ML models (downloaded at runtime, not bundled in the installer)
 
@@ -119,7 +120,8 @@ update the row.
 | serde       | 1.x     | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Serialization for commands/events. |
 | serde_json  | 1.x     | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | JSON (status payloads). |
 | rand        | 0.8.8   | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | 256-bit session token generation (`rand::rngs::OsRng`). |
-| ureq        | 2.12.1  | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Lightweight blocking HTTP client for the supervisor `/healthz` probe (chosen over `reqwest`: no async TLS stack needed for loopback HTTP). |
+| ureq        | 2.12.1  | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Lightweight blocking HTTP client for the supervisor `/healthz` probe + the authenticated engine proxy (chosen over `reqwest`: no async TLS stack needed for loopback HTTP). |
+| base64      | 0.22.1  | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Base64-encode the captured snip PNG before it crosses to the webview / engine (`snip.rs`). |
 | tauri-plugin-shell | 2.5.0 | crates.io | MIT OR Apache-2.0 | Yes       | Yes          | Official Tauri sidecar/process spawn (handles externalBin `-$TARGET_TRIPLE` resolution). |
 | tauri-plugin-global-shortcut | 2.4.1 | crates.io | MIT OR Apache-2.0 | Yes | Yes     | Rust side of the global-shortcut plugin; registers the Ctrl+Shift+M snip hotkey. Resolved to 2.4.1 (latest 2.x) from the `2.3.0` floor matching the JS plugin line. |
 | xcap        | 0.9.8   | crates.io | Apache-2.0         | Yes          | Yes          | Cross-platform monitor capture for the snip region grab (Windows/macOS/Linux). |

@@ -333,3 +333,145 @@ Test Files  8 passed (8)
 - **CPU snip latency** as a user-perceived number (the ≤1.5 s R-UI-2 target is a GPU target;
   the adoption-time CPU inference was load≈1.26 s + infer≈0.84 s on the fixture, measured, not
   asserted as the UI latency).
+
+---
+
+## Convergence re-run (2026-10-18) — authoritative, freshly executed
+
+Everything below was run end-to-end on this host during convergence and **supersedes** the
+per-task self-reports above wherever they differ. Commands are shown exactly as run (the
+required PATH export is prepended to every shell; the engine uses the venv python; Rust
+commands run after loading the MSVC env via `vcvars64.bat`).
+
+### A. Engine PyInstaller freeze fix (root cause + fix)
+
+The Rust/Tauri build had been red because the `externalBin` sidecar
+`binaries/texora-engine-x86_64-pc-windows-msvc.exe` did not exist — the freeze never
+finished placing it. Root cause (diagnosed, not guessed): PyInstaller's Windows
+post-assembly step rewrites the PE **build timestamp** and **checksum** *in place*. For this
+`--onefile` binary (~570 MB, because torch is bundled) the in-place rewrite fails with
+`OSError(22, 'Invalid argument')` because `pefile` had just memory-mapped the same path — a
+known PyInstaller/pefile interaction on large Windows onefiles, **not** an engine defect. The
+fully assembled onefile already existed on disk at that point; only the cosmetic
+timestamp/checksum fix-up had not landed.
+
+Reproduced precisely: a plain `open(exe,'wb').write(pe.write())` to a **new** path succeeds,
+but `winutils.set_exe_build_timestamp` rewriting the **just-mmapped** path raises
+`OSError(22)`. Writing to a temp file and `os.replace`-ing it over the original succeeds.
+
+Fix (in `scripts/build_engine.py`, committed): run PyInstaller with `check=False`; if it
+exits non-zero **but** the expected onefile exists on Windows, finish the PE
+timestamp+checksum fix-up ourselves via **temp-file + atomic replace** (the proven-safe
+path), then proceed to place the sidecar. Any other failure, or a missing binary, is still a
+hard error. This changes no engine behavior and ships no unverified binary.
+
+```
+### engine/.venv/Scripts/python.exe scripts/build_engine.py --triple x86_64-pc-windows-msvc
+[build_engine] PyInstaller exited non-zero but the onefile exists; applying the PE
+  timestamp/checksum fix-up via temp+replace (works around the large-onefile OSError 22 on Windows).
+[build_engine] frozen binary: ...\engine\.build\dist\texora-engine.exe
+[build_engine] sidecar placed: ...\apps\desktop\src-tauri\binaries\texora-engine-x86_64-pc-windows-msvc.exe
+
+### sidecar runs (fully assembled, functional):
+./binaries/texora-engine-x86_64-pc-windows-msvc.exe --help
+usage: texora_engine [-h] [--host HOST] --port PORT [--token TOKEN]
+```
+
+Binary size ≈ 570 MB; `git check-ignore` confirms it is gitignored (never committed).
+
+### B. Rust / Tauri — now GREEN (was exit 101 only due to the missing sidecar)
+
+Run from `apps/desktop/src-tauri` with the MSVC env loaded:
+
+```
+### cargo build
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 16s
+
+### cargo fmt --check
+(fixed one pre-existing formatting nit in src/snip.rs via `cargo fmt`, then:)
+### cargo fmt --check  -> clean (exit 0)
+
+### cargo clippy --all-targets -- -D warnings
+    Finished `dev` profile ... (exit 0, no warnings)
+
+### cargo test
+running 14 tests ... test result: ok. 14 passed; 0 failed; 0 ignored
+```
+
+### C. Engine (venv python, from `engine/`)
+
+```
+### ruff check .                          -> All checks passed!
+### black --check . --line-length 100     -> 50 files would be left unchanged.
+### mypy texora_engine                    -> Success: no issues found in 32 source files
+### pytest -q                             -> 59 passed
+```
+
+Key D-items, re-run and confirmed real (not skipped, not mocked):
+
+```
+### pytest tests/test_formula_pix2tex.py tests/test_downloader.py -v
+tests/test_formula_pix2tex.py ..   (test_real_model_recognizes_fixture PASSED — real CPU
+                                    inference on the committed fixture via the production path)
+tests/test_downloader.py ..        (test_bad_hash_is_rejected PASSED — corrupt file raises
+                                    ChecksumMismatch, .part deleted, file not promoted)
+```
+
+### D. pix2tex hash provenance — confirmed REAL on this host (not a placeholder)
+
+The SHA-256 values baked into `engine/texora_engine/models/catalog.py` were recomputed on
+this host from the prefetched weights and cross-checked against the immutable upstream
+release assets:
+
+```
+### sha256sum engine/.venv/pix2tex_models/pix2tex/weights.pth
+a63d9141c53d266cb682fb5a8bd83bd5cbe283145e0e78ebdc0f895195a1dfaa   (matches catalog.py)
+### sha256sum engine/.venv/pix2tex_models/pix2tex/image_resizer.pth
+1c3820659985ad142b526490bb25c23d977176ac2073591b3bddada692718458   (matches catalog.py)
+
+### HEAD on the immutable per-tag upstream URLs (lukas-blecher/LaTeX-OCR @ v0.0.1):
+weights.pth        status 200  content-length 102113875  (matches catalog size)
+image_resizer.pth  status 200  content-length 19441973   (matches catalog size)
+```
+
+Honesty caveat (unchanged, see §Task 2.1 + `docs/LICENSES.md`): these are **our** hashes of
+the upstream assets, computed on this host — not a vendor-signed attestation. They detect
+tamper/corruption on every later load and offline import. A vendor-pinned/content-addressed
+hash is an M7 option.
+
+Confidence contract (R-REC-2) re-confirmed both ways: the pinned pix2tex 0.1.4 exposes no
+usable per-token scores, so every result carries `confidence=0.0` +
+`confidence_kind="unavailable"` + a `detail` (never a fabricated number). The Snip UI renders
+the "confidence unavailable" state — asserted by vitest (`SnipPopup.test.tsx` → "shows the
+confidence-unavailable state").
+
+### E. Frontend (from worktree root)
+
+```
+### pnpm --filter desktop lint             -> clean (eslint, 0 problems)
+### pnpm --filter desktop test -- --run    -> Test Files 8 passed (8) · Tests 33 passed (33)
+### pnpm --filter desktop build            -> tsc (strict) + tsc:node + vite build → built in 4.17s
+```
+
+### F. Invariants re-checked during convergence (no regressions)
+
+- **Single typed client / no fetch**: `engineClient.ts` is the ONLY production module
+  importing `@tauri-apps/api` (`invoke`/`listen`); all other hits are `*.test.*` files. No
+  production module calls `fetch(`. Enforced by `bridgeInvariant.test.ts` (passing) and
+  grep-confirmed during convergence.
+- **Token/port stay in Rust**: JS→engine traffic goes only through the Rust proxy commands
+  (`recognize_snip`/`get_hardware`/`set_device`/`model_status`/`model_download`); the webview
+  never receives the port or bearer token.
+- **i18n parity**: `en.json` and `id.json` both carry 33 keys with identical key sets (no
+  missing/extra) — checked during convergence and asserted by `locales.test.ts`.
+- **Engine security**: bearer required on every non-health route; `/recognize/snip` is
+  bearer-protected with Pydantic I/O (asserted in `test_recognize_api.py`). SQLite access
+  only via `db/`. Recognizer implements the `recognizers/base.py` Protocol with a stable
+  `id` and a pure `recognize(...)` returning a typed `FormulaResult`.
+
+### PENDING MANUAL (host/interactive) — unchanged, NOT claimed as passed
+
+Global hotkey Ctrl+Shift+M firing in a running window; live on-screen region capture + OS
+capture permission; the result popup rendered over the desktop; user-perceived CPU snip
+latency. These are satisfied structurally here (green builds + unit/integration tests); no
+long-running dev server/watcher was started by automation.
