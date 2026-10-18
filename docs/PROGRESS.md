@@ -1,19 +1,29 @@
 # Texora — Build Progress Checkpoint
 
-Last updated: 2026-10-17 (checkpoint 4) · Current milestone: **M2 (single-image formula OCR)** —
-design APPROVED + planned, **implementation not yet started**. M1 is **DONE and merged to `main`**.
+Last updated: 2026-10-18 (checkpoint 5) · Current milestone: **M2 (single-image formula OCR)** —
+**implemented (self-reported), NOT yet reviewer-verified; build is RED at the stop point.** M1 is
+**DONE and merged to `main`**.
 
-> Paused by user request at a clean boundary (M2 design approved, plan written, zero code written).
-> Nothing is half-finished. Safe to leave. See "Exact next step to resume" to pick up M2.
+> Paused by user request MID-IMPLEMENTATION. The M2 implement step committed all six tasks' code
+> before the stop, but (a) the semantic reviewer never ran, so every `[x]` is self-reported not
+> gate-verified, and (b) the Rust/Tauri build was FAILING (`cargo` exit 101) and the engine
+> PyInstaller freeze was incomplete when stopped. So M2 is "mostly written but not green." Scratch
+> build-wrapper files were cleaned up; the worktree is otherwise clean. See "Exact next step" below.
 
 ## Milestone status at a glance
 - **M1 — Skeleton: DONE, merged to `main` @ `77e0114`.** All 7 tasks (1.1–1.7) implemented,
   reviewer-APPROVED, fast-forward merged. Worktree removed. Three host-limited items recorded as
   pending-manual (never faked): `tauri dev` window opening [1.2]; live status badge in a running
   window [1.4]; CI "installs and launches" on a real GitHub runner [1.6].
-- **M2 — Single-image formula OCR: design APPROVED, plan written, NOT implemented.** Lives on
-  branch `feat/m2-formula-ocr` (worktree `.worktrees/m2-formula-ocr`), commit `6463bdf` — design +
-  plan artifacts only, no production code. NOT merged.
+- **M2 — Single-image formula OCR: IMPLEMENTED (self-reported), NOT reviewer-verified, build RED.**
+  Branch `feat/m2-formula-ocr` (worktree `.worktrees/m2-formula-ocr`) @ `f3283a9`. All six tasks
+  2.1–2.6 have code committed and are ticked `[x]` in tasks.md BY THE CODER (not independently
+  reviewed). `docs/m2-verification.md` exists (~15 KB). Engine files present:
+  `models/{catalog,downloader,registry,store,bundle,progress,errors}.py`,
+  `recognizers/{base,factory,formula_pix2tex}.py`; snip UI + Rust proxy + hotkey/capture committed.
+  KNOWN RED at stop: `cargo` build exit 101 (Rust proxy/transport) and the engine freeze did not
+  complete. The real pix2tex fetch/hash + real-inference evidence must be re-confirmed (the stop
+  landed before the reviewer could check it). NOT merged.
 - M3–M8: not started.
 
 ## Git state
@@ -87,21 +97,32 @@ export PATH="$HOME/.cargo/bin:$LOCALAPPDATA/Programs/Python/Python311:$LOCALAPPD
   pending, not reported done.
 
 ## Errors / blockers
-- None active. The earlier M2 HIGH blocker (pix2tex weights had no pinnable SHA-256) is resolved by
-  decision 2 above (pin-on-first-fetch).
+- **ACTIVE: Rust/Tauri build is RED.** At the stop point `cargo` exited 101 building the M2 Rust
+  engine-proxy / transport additions in `apps/desktop/src-tauri`. Must be diagnosed and fixed first
+  on resume (load vcvars64.bat before cargo). Likely a compile error in the new proxy command /
+  model-poller code (commit `da780e9`), not an environment issue (M1 Rust built fine).
+- **ACTIVE: engine PyInstaller freeze incomplete.** The freeze run was interrupted; not a failure
+  per se, just unfinished. Re-run `scripts/build_engine.py` after the engine side is green.
+- **UNVERIFIED (not a blocker, but do not trust as done):** all M2 `[x]` ticks are coder
+  self-reports; the semantic reviewer never ran. The real pix2tex weight fetch + SHA-256 pin +
+  real-CPU-inference evidence in `docs/m2-verification.md` needs independent confirmation. The
+  earlier design-level HIGH (no pinnable SHA-256) is resolved by decision 2 (pin-on-first-fetch).
 
-## Exact next step to resume (M2 implementation)
-1. The design is APPROVED and the plan is written on `feat/m2-formula-ocr` (`6463bdf`). Relaunch the
-   M2 **implementation** only (skip the design loop — it's done). Point the implement-and-review
-   loop at the existing worktree `.worktrees/m2-formula-ocr` and `.agents/tasks/m2-plan.md` /
-   `m2-design.md` / the FEAT artifacts. Full review loop (M2 is correctness-critical).
-2. Implement tasks 2.1→2.6 + the JS→engine Rust-proxy transport per the plan, honoring the five
-   settled decisions. Task 2.2 does the REAL pix2tex fetch + CPU inference (no mocks); if it can't
-   run on this CPU host, pause and ask rather than faking output.
-3. Verify per task (engine ruff/black/mypy/pytest; frontend pnpm lint/test/build; cargo
-   fmt/clippy/build with vcvars loaded). Record evidence in a new `docs/m2-verification.md`. Tick
-   M2 tasks `[x]` in `.kiro/specs/texora/tasks.md`; add LICENSES.md rows (deps + model).
-4. Reviewer writes `.agents/tasks/m2-review.json` verdict APPROVED when all `done:` criteria are met
-   or host-limitations are honestly documented.
-5. Only after M2 APPROVED: orchestrator fast-forwards `main` to `feat/m2-formula-ocr`, removes the
-   worktree + branch, then starts M3. Do NOT re-run M1 tasks.
+## Exact next step to resume (M2 — converge the existing implementation, do NOT restart it)
+The code is already written on `feat/m2-formula-ocr` (`f3283a9`); the job now is to make it GREEN
+and get it reviewer-APPROVED, NOT to reimplement. Relaunch an implement-and-review loop pointed at
+the existing worktree `.worktrees/m2-formula-ocr` with this order:
+1. **Fix the RED Rust build FIRST.** In `apps/desktop/src-tauri`, load vcvars64.bat, run
+   `cargo build` + `cargo clippy -D warnings`, read the actual errors, fix the proxy/transport code
+   (commit `da780e9` area). Do not proceed until cargo is green.
+2. **Re-run the full per-stack verification** and record REAL output in `docs/m2-verification.md`
+   (overwrite the self-reported sections with actually-run evidence): engine ruff/black/mypy/pytest
+   (venv); frontend `pnpm --filter desktop lint/test/build`; cargo fmt/clippy/build/test.
+3. **Confirm the pix2tex story for real:** that `catalog.py` holds a REAL computed SHA-256 (not a
+   placeholder), that the downloader rejects a corrupt file (the required test), and that the
+   recognizer runs REAL CPU inference on the committed fixture (no mocks). If pix2tex cannot run on
+   this CPU host, pause and ask — do not fake output. Re-run the engine freeze when green.
+4. **Then the semantic reviewer runs** and writes `.agents/tasks/m2-review.json`; loop back on any
+   HIGH/MEDIUM finding. M2 is correctness-critical → full iterate-until-APPROVED loop.
+5. Only after M2 is reviewer-APPROVED: fast-forward `main` to `feat/m2-formula-ocr`, remove the
+   worktree + branch, then start M3. Do NOT re-run M1 tasks and do NOT discard the existing M2 code.
