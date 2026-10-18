@@ -136,13 +136,83 @@ def freeze(python: str, workdir: Path) -> Path:
         str(ENTRYPOINT),
     ]
     print("[build_engine] running:", " ".join(cmd), flush=True)
-    subprocess.run(cmd, check=True, cwd=str(ENGINE_DIR))
+    result = subprocess.run(cmd, check=False, cwd=str(ENGINE_DIR))
 
     exe_name = f"{SIDECAR_BASE}.exe" if _is_windows() else SIDECAR_BASE
     produced = dist_dir / exe_name
+
+    if result.returncode != 0:
+        # PyInstaller's Windows post-assembly step rewrites the PE build timestamp and
+        # checksum IN PLACE. For a large --onefile binary (torch pushes this well past
+        # half a GB) that in-place rewrite fails on Windows with OSError(22, 'Invalid
+        # argument') because the file was just memory-mapped by ``pefile`` — a known
+        # PyInstaller/pefile interaction, not a defect in the engine. The fully assembled
+        # onefile already exists on disk at this point; only the cosmetic timestamp/checksum
+        # fix-up did not land. When that is exactly what happened, finish the fix-up
+        # ourselves via a temp-file + atomic replace (which avoids writing back to the
+        # just-mmapped path) and continue. Any other failure — or a missing binary — is a
+        # real build error and is re-raised.
+        if _is_windows() and produced.exists():
+            print(
+                "[build_engine] PyInstaller exited non-zero but the onefile exists; "
+                "applying the PE timestamp/checksum fix-up via temp+replace "
+                "(works around the large-onefile OSError 22 on Windows).",
+                flush=True,
+            )
+            _finish_windows_pe_fixup(produced)
+        else:
+            raise SystemExit(
+                f"PyInstaller failed (exit {result.returncode}) and produced no usable "
+                f"binary at {produced}"
+            )
+
     if not produced.exists():
         raise SystemExit(f"PyInstaller did not produce the expected binary at {produced}")
     return produced
+
+
+def _finish_windows_pe_fixup(exe_path: Path) -> None:
+    """Apply PyInstaller's Windows PE build-timestamp + checksum fix-up safely.
+
+    Mirrors ``PyInstaller.building.api.EXE`` post-processing, but writes the modified bytes
+    to a temp file and atomically replaces the original instead of rewriting the path that
+    ``pefile`` just memory-mapped (the in-place rewrite is what fails with OSError 22 for a
+    large onefile). If anything here fails, the error is surfaced — we never ship a binary
+    we could not verify as runnable.
+    """
+
+    import os
+    import time
+
+    import pefile
+    from PyInstaller.utils.win32 import winutils
+
+    build_timestamp = int(os.environ.get("SOURCE_DATE_EPOCH", time.time()))
+
+    with pefile.PE(str(exe_path), fast_load=True) as pe:
+        pe.full_load()
+        pe.FILE_HEADER.TimeDateStamp = build_timestamp
+        for debug_entry in getattr(pe, "DIRECTORY_ENTRY_DEBUG", []):
+            if debug_entry.struct.TimeDateStamp:
+                debug_entry.struct.TimeDateStamp = build_timestamp
+        data = pe.write()
+
+    tmp = exe_path.with_suffix(exe_path.suffix + ".tsfix")
+    with open(tmp, "wb") as fp:
+        fp.write(data)
+    os.replace(tmp, exe_path)
+
+    # Recompute and write the PE checksum (AV software flags a zero/stale checksum). Reuse
+    # PyInstaller's fast checksum helper, but apply the result with the same temp+replace
+    # dance so the large-onefile in-place rewrite cannot trip OSError 22.
+    checksum = winutils.compute_exe_pe_checksum(str(exe_path))
+    with pefile.PE(str(exe_path), fast_load=True) as pe:
+        pe.OPTIONAL_HEADER.CheckSum = checksum
+        data = pe.write()
+    tmp = exe_path.with_suffix(exe_path.suffix + ".cksum")
+    with open(tmp, "wb") as fp:
+        fp.write(data)
+    os.replace(tmp, exe_path)
 
 
 def place_sidecar(produced: Path, triple: str) -> Path:
