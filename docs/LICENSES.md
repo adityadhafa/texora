@@ -33,6 +33,10 @@ update the row.
 | torch             | 2.3.1+cpu | PyPI (PyTorch CPU index) | BSD-3-Clause | Yes | Yes | Tensor runtime backing pix2tex. CPU wheel from `https://download.pytorch.org/whl/cpu` (no CUDA payload). |
 | torchvision       | 0.18.1+cpu | PyPI (PyTorch CPU index) | BSD-3-Clause | Yes | Yes | torch companion required by the pix2tex/timm stack; version matched to torch 2.3.1. |
 | pillow            | 10.4.0    | PyPI      | HPND (MIT-CMU) | Yes         | Yes          | Decode snip images; feed the model. Decompression-bomb guard via `Image.MAX_IMAGE_PIXELS`. |
+| pypdfium2         | 5.14.0    | PyPI      | BSD-3-Clause / Apache-2.0 | Yes | Yes       | **M3.** PDF renderer (shipped default; permissive-first choice over AGPL PyMuPDF). Adaptive-DPI page render + born-digital text-layer extraction. |
+| pillow-heif       | 0.18.0    | PyPI      | BSD-3-Clause  | Yes          | Yes          | **M3.** HEIC/HEIF image decode via `register_heif_opener()`. Bundled `libheif` is LGPL-3.0, dynamically linked (redistributable); no static LGPL linkage. |
+| onnxruntime       | 1.19.2    | PyPI      | MIT           | Yes          | Yes          | **M3.** CPU-default inference runtime for the PP-DocLayout / PP-OCRv5 ONNX paths (CUDA EP selected via `settings.device`). Resolved to latest 1.19 patch (1.19.2) on PyPI. |
+| pytesseract       | 0.3.13    | PyPI      | Apache-2.0    | Yes          | Yes          | **M3.** Wrapper for the permissive Tesseract fallback text OCR. The system/bundled **Tesseract 5.x** engine it drives is also Apache-2.0. |
 | pylatexenc        | 2.10      | PyPI      | MIT           | Yes          | Yes          | LaTeX parse/structure validation (`LatexWalker`). |
 | latex2mathml      | 3.77.0    | PyPI      | MIT           | Yes          | Yes          | LaTeX→MathML for the snip result. |
 | transformers      | 4.42.4    | PyPI      | Apache-2.0    | Yes          | Yes          | Transitive (pix2tex tokenizer); pinned to the era-matched line for torch 2.3.1. |
@@ -135,8 +139,10 @@ are documented here so the permissive-first policy is explicit.
 
 | Component | Ecosystem | License                                         | Personal use | Redistribute | Policy |
 |-----------|-----------|-------------------------------------------------|--------------|--------------|--------|
-| PyMuPDF (fitz) | PyPI | AGPL-3.0 (or commercial)                     | Yes (local)  | No (as default) | **Opt-in only, never default.** The chosen PDF renderer is `pypdfium2` (BSD/Apache), added in M3. PyMuPDF may only be enabled by the user for local personal use. |
+| PyMuPDF (fitz) | PyPI | AGPL-3.0 (or commercial)                     | Yes (local)  | No (as default) | **Opt-in only, never default.** The chosen PDF renderer is `pypdfium2` (BSD/Apache), added as the M3 shipped default. PyMuPDF may only be enabled by the user for local personal use. M3 adds no PyMuPDF dependency. |
+| DocLayout-YOLO (`doclayout-yolo`) | PyPI / GitHub | AGPL-3.0 (code + `ultralytics` lineage runtime) | Yes (local, personal) | No (as default) | **M3. Opt-in only, never the shipped default, not bundled** (`R-LIC-2`). `doclayout-yolo` 0.0.4 PyPI classifier is `GNU Affero General Public License v3 or later`; the `opendatalab/DocLayout-YOLO` repo and the `ultralytics` 8.4.x lineage are AGPL-3.0. Verified 2026-10-18; re-confirm the classifier from the official source at adoption. The `layout/doclayout_yolo.py` adapter exists so a user can *locally* choose it, but it is never registered in the default factory and never written as a `pipeline.yaml` default. The permissive shipped default is `pp_doclayout_onnx` (Apache-2.0). |
 | Surya (OCR / layout) | PyPI / GitHub | GPL-3.0 code + non-commercial RAIL weights | Yes (local, personal) | No | **Opt-in only, not redistributable.** Code is GPL and the weights are non-commercial RAIL; never shipped as a default. |
 
-**Neither PyMuPDF nor Surya is a dependency in M1.** No Surya or PyMuPDF reference appears in
-any M1 manifest (`engine/` requirements, `apps/desktop/package.json`, or `Cargo.toml`).
+**Neither PyMuPDF, DocLayout-YOLO, nor Surya is a shipped default anywhere.** No PyMuPDF or
+Surya reference appears in any manifest; `doclayout-yolo` is not in `engine/requirements.txt`
+and its adapter is never registered in the default factory.

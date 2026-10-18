@@ -92,3 +92,7 @@ testpaths = ["tests"]
 addopts = "-q"
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "model: test requires downloaded model weights; skip-with-reason when absent (never mocked).",
+    "latex: test requires a TeX toolchain (latexmk); xfail-skips locally, asserted in CI.",
+]

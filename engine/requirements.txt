@@ -25,6 +25,18 @@ torchvision==0.18.1+cpu
 # --- Imaging (M2) ---
 pillow==10.4.0
 
+# --- PDF render + image decode + OCR runtimes (M3) ---
+# pypdfium2: permissive PDF renderer (shipped default). pillow-heif: HEIC/HEIF decode.
+# onnxruntime: CPU-default inference runtime for the PP-DocLayout / PP-OCRv5 ONNX paths.
+# pytesseract: wrapper for the permissive Tesseract fallback text OCR (system/bundled 5.x).
+# NOTE: shapely/pyclipper (PP-OCR ONNX postprocess transitives) are intentionally NOT pinned
+# yet — FEAT-001 adds no ONNX decode code, so they are added with the text adapter that needs
+# them (see docs/m3-verification.md). opencv-python-headless + numpy are already pinned above.
+pypdfium2==5.14.0
+pillow-heif==0.18.0
+onnxruntime==1.19.2
+pytesseract==0.3.13
+
 # --- LaTeX parse/validate + MathML (M2) ---
 pylatexenc==2.10
 latex2mathml==3.77.0

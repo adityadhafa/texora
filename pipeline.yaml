@@ -1,10 +1,28 @@
 # pipeline.yaml — default pipeline config (engine ids per stage).
 # Permissive-first: only Apache/MIT/BSD engines may be the shipped default here;
-# copyleft/non-commercial engines (e.g. Surya) are opt-in only, never set as a default id.
-# `recognize` is a MAP of sub-stages (formula/text/table/handwriting); M3+ fill the other keys.
+# copyleft/non-commercial engines (e.g. Surya, DocLayout-YOLO/AGPL, PyMuPDF/AGPL) are opt-in
+# only, reached through the explicit acknowledgment path, NEVER set as a default id below.
+# `recognize` is a MAP of sub-stages (formula/text/table/handwriting); M6 fills table/handwriting.
 version: 1
 stages:
+  ingest: pypdfium2            # PDF render + image load (BSD/Apache) — default
+  layout: pp_doclayout_onnx    # PERMISSIVE Apache-2.0 default; born-digital pages use the
+                               # structural text-layer fast-path automatically (not an id here)
   recognize:
-    formula: pix2tex        # adapter id; swappable without touching API/UI
-    # text / table / handwriting engine ids are set in later milestones (M3/M6)
-  # ingest / layout / ensemble / export are configured in M3+ (keys above)
+    formula: pix2tex           # M2 default, reused unchanged (MIT)
+    text: pp_ocrv5_onnx        # M3 default PP-OCRv5 (Apache-2.0); tesseract = permissive fallback
+    # table / handwriting engine ids are set in M6
+  ensemble: null               # M5
+  export: markdown             # default export target for the headline PDF→MD flow
+ingest:                        # DPI + preprocess toggles (Pydantic-validated, no magic constants)
+  base_dpi: 260
+  max_dpi: 400
+  small_font_px: 12
+  born_digital_char_threshold: 20
+  born_digital_coverage: 0.05
+  preprocess:
+    deskew: true
+    denoise: true
+    binarize: false
+    perspective: false
+    auto_crop: true

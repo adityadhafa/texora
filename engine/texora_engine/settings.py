@@ -76,3 +76,39 @@ class Settings(BaseSettings):
         ge=1,
         description="Worker pool size for snip inference. 1 serializes the shared torch model.",
     )
+
+    # --- Page/region recognition guards (M3) ---
+    region_timeout_s: float = Field(
+        default=30.0,
+        gt=0,
+        description="Per-region recognition timeout in seconds; a timeout marks the region failed.",
+    )
+    region_concurrency: int = Field(
+        default=1,
+        ge=1,
+        description="Worker pool size for per-region inference. 1 serializes the shared models.",
+    )
+
+    # --- Text recognition (M3) ---
+    text_fallback_to_tesseract: bool = Field(
+        default=True,
+        description="Fall back to the Tesseract text adapter when the PP-OCRv5 model is absent.",
+    )
+    tesseract_cmd: str | None = Field(
+        default=None,
+        description="Absolute path to the tesseract binary; None resolves it on PATH.",
+    )
+    tesseract_data_dir: str | None = Field(
+        default=None,
+        description="Optional tessdata directory (traineddata); None uses the system default.",
+    )
+
+    # --- Export (M3) ---
+    export_preamble: str = Field(
+        default="article",
+        description="LaTeX preamble template name used by the .tex exporter.",
+    )
+    figure_asset_dir: Path = Field(
+        default=Path("assets"),
+        description="Directory (relative to the export target) for extracted figure assets.",
+    )

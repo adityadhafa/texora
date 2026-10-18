@@ -24,3 +24,26 @@ def test_env_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     assert s.max_snip_bytes == 1024
     assert s.device == "cuda"
     assert s.snip_timeout_s == 5.5
+
+
+def test_m3_defaults() -> None:
+    s = Settings()
+    assert s.region_timeout_s == 30.0
+    assert s.region_concurrency == 1
+    assert s.text_fallback_to_tesseract is True
+    assert s.tesseract_cmd is None
+    assert s.tesseract_data_dir is None
+    assert s.export_preamble == "article"
+    assert str(s.figure_asset_dir) == "assets"
+
+
+def test_m3_env_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TEXORA_ENGINE_REGION_TIMEOUT_S", "12.5")
+    monkeypatch.setenv("TEXORA_ENGINE_TEXT_FALLBACK_TO_TESSERACT", "false")
+    monkeypatch.setenv("TEXORA_ENGINE_TESSERACT_CMD", "/usr/bin/tesseract")
+    monkeypatch.setenv("TEXORA_ENGINE_EXPORT_PREAMBLE", "amsart")
+    s = Settings()
+    assert s.region_timeout_s == 12.5
+    assert s.text_fallback_to_tesseract is False
+    assert s.tesseract_cmd == "/usr/bin/tesseract"
+    assert s.export_preamble == "amsart"
