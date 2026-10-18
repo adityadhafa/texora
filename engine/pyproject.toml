@@ -88,6 +88,8 @@ module = [
     "pypdfium2.*",
     "pillow_heif.*",
     "cv2.*",
+    "onnxruntime.*",
+    "doclayout_yolo.*",
 ]
 ignore_missing_imports = true
 

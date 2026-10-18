@@ -40,6 +40,24 @@ def prefetched_models_dir() -> Path | None:
     return None
 
 
+def prefetched_layout_models_dir() -> Path | None:
+    """Return the models dir with the prefetched PP-DocLayout ONNX weights, or None if absent.
+
+    Mirrors :func:`prefetched_models_dir` for the M3 layout model-gated test: the
+    ``@pytest.mark.model`` PP-DocLayout test runs only when ``doclayout.onnx`` + ``label_map.txt``
+    are prefetched (never mocked), otherwise it skips with reason. Overridable via
+    ``TEXORA_TEST_MODELS_DIR``.
+    """
+
+    env = os.environ.get("TEXORA_TEST_MODELS_DIR")
+    base = Path(env) if env else _DEFAULT_MODELS_DIR
+    onnx = base / "pp_doclayout" / "doclayout.onnx"
+    labels = base / "pp_doclayout" / "label_map.txt"
+    if onnx.exists() and labels.exists():
+        return base
+    return None
+
+
 @pytest.fixture()
 def settings(tmp_path: Path) -> Settings:
     """Settings with a known token and isolated log/db/models directories.

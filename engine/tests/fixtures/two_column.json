@@ -1,0 +1,16 @@
+{
+  "description": "Synthetic two-column layout for the reading-order unit test (design 6.4). Page 1000x1400 px. Left column x in [40, 460], right column x in [540, 960], gutter ~80px (> 6% of width). Regions are listed out of reading order on purpose; order() must produce the interleaved L-col-top->L-col-bottom then R-col-top->R-col-bottom sequence, and bind the right-margin equation number (1) to its display equation.",
+  "width": 1000,
+  "height": 1400,
+  "expected_order_ids": ["L1", "L2", "L3_disp", "L4_eqnum", "L5", "R1", "R2", "R3"],
+  "regions": [
+    {"id": "R2", "type": "paragraph", "bbox": {"x0": 540, "y0": 320, "x1": 960, "y1": 520}, "confidence": 0.9},
+    {"id": "L1", "type": "title", "bbox": {"x0": 40, "y0": 60, "x1": 460, "y1": 120}, "confidence": 0.95},
+    {"id": "R1", "type": "paragraph", "bbox": {"x0": 540, "y0": 60, "x1": 960, "y1": 300}, "confidence": 0.9},
+    {"id": "L4_eqnum", "type": "equation_number", "bbox": {"x0": 410, "y0": 405, "x1": 458, "y1": 435}, "confidence": 0.8},
+    {"id": "L3_disp", "type": "display_math", "bbox": {"x0": 120, "y0": 400, "x1": 380, "y1": 440}, "confidence": 0.85},
+    {"id": "R3", "type": "paragraph", "bbox": {"x0": 540, "y0": 540, "x1": 960, "y1": 760}, "confidence": 0.9},
+    {"id": "L2", "type": "paragraph", "bbox": {"x0": 40, "y0": 140, "x1": 460, "y1": 380}, "confidence": 0.9},
+    {"id": "L5", "type": "paragraph", "bbox": {"x0": 40, "y0": 460, "x1": 460, "y1": 700}, "confidence": 0.9}
+  ]
+}

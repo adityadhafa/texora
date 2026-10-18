@@ -1,7 +1,17 @@
 """Model registry, downloader, offline-bundle import, and store."""
 
 from texora_engine.models.bundle import import_bundle
-from texora_engine.models.catalog import PIX2TEX_MODEL_ID, catalog, pix2tex_spec
+from texora_engine.models.catalog import (
+    PIX2TEX_MODEL_ID,
+    PP_DOCLAYOUT_MODEL_ID,
+    PP_OCRV5_DET_MODEL_ID,
+    PP_OCRV5_REC_MODEL_ID,
+    catalog,
+    pix2tex_spec,
+    pp_doclayout_spec,
+    pp_ocrv5_det_spec,
+    pp_ocrv5_rec_spec,
+)
 from texora_engine.models.downloader import (
     download_model,
     sha256_file,
@@ -23,6 +33,9 @@ from texora_engine.models.store import ModelStore
 
 __all__ = [
     "PIX2TEX_MODEL_ID",
+    "PP_DOCLAYOUT_MODEL_ID",
+    "PP_OCRV5_DET_MODEL_ID",
+    "PP_OCRV5_REC_MODEL_ID",
     "BundleIncomplete",
     "ChecksumMismatch",
     "ModelDownloadState",
@@ -37,6 +50,9 @@ __all__ = [
     "download_model",
     "import_bundle",
     "pix2tex_spec",
+    "pp_doclayout_spec",
+    "pp_ocrv5_det_spec",
+    "pp_ocrv5_rec_spec",
     "sha256_file",
     "verify_file",
 ]

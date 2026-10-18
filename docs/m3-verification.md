@@ -138,3 +138,103 @@ $ .venv/Scripts/python.exe -m pytest -q
 PENDING / host-limited (unchanged by FEAT-002): the `@pytest.mark.latex` TeX-compile and
 `@pytest.mark.model` weight-backed tests arrive with later M3 features; CUDA EP remains
 code-review-only on this CPU host. FEAT-002 touches no model, LaTeX, or CUDA path.
+
+---
+
+## FEAT-003 — layout/ package: Protocol + factory + detectors + reading order (3.3/3.4)
+
+The `layout/` package was implemented FRESH as ONE coherent public API after a prior concurrent
+run left two incompatible half-implementations (both already wiped). New modules under
+`engine/texora_engine/layout/`:
+
+- `base.py` — `RegionType` StrEnum (full 15-value taxonomy), `BBox`, `Region` (confidence 0..1 +
+  `reading_order=-1` + `source`), `LayoutResult`, and the `@runtime_checkable LayoutDetector`
+  Protocol (`detect` MUST catch its own errors and return `regions=[]` with `engine_id` set, never
+  raise, never fabricate).
+- `factory.py` — mirror of `recognizers/factory.py`: a PERMISSIVE-ONLY `_REGISTRY` containing ONLY
+  `pp_doclayout_onnx` (AGPL `doclayout_yolo` is intentionally ABSENT); `build_layout_detector`
+  resolves EVERY id in `entry.model_ids` via a dict-comprehension over `model_store.require_ready`
+  (multi-model resolution per design §2.1), typed `LayoutStageNotConfigured` /
+  `UnknownLayoutEngineError` (never a silent default); `known_layout_engine_ids()`.
+- `born_digital.py` — NO model, NOT a registry id (assembler-owned structural fast-path). Clusters
+  text-layer spans into lines→regions; classifies TITLE / PARAGRAPH / INLINE_MATH / DISPLAY_MATH /
+  EQUATION_NUMBER / LIST with the minimal `is_mathish` signal set (math Unicode-block ratio, the
+  per-span italic/math-font flag from ingest, line isolation, right-margin `(n)`). Confidence is a
+  documented structural heuristic (not a model probability).
+- `pp_doclayout_onnx.py` — `id='pp_doclayout_onnx'`, `model_ids=('pp_doclayout',)`; onnxruntime
+  `CPUExecutionProvider` default (`CUDAExecutionProvider` only when `device=='cuda'` — CUDA path is
+  CODE-REVIEW-ONLY on this CPU host, flagged PENDING). On ANY inference exception returns
+  `LayoutResult(regions=[], engine_id=self.id)`, never raises.
+- `doclayout_yolo.py` — AGPL opt-in adapter with an AGPL-opt-in-only module docstring; NOT imported
+  into / registered in `factory._REGISTRY`, never written as a `pipeline.yaml` default.
+- `reading_order.py` — pure `order(regions, width, height) -> list[Region]`: column detection
+  (x-center projection + vertical gutters) + recursive XY-cut; a right-margin `EQUATION_NUMBER`
+  binds to the nearest `DISPLAY_MATH` on the same band and orders immediately after it;
+  headers/footers ordered out-of-band; deterministic.
+- `__init__.py` — re-exports the Protocol + types + factory + `order`.
+
+### Model catalog + licenses (same change)
+
+`models/catalog.py` gained three ONNX `ModelSpec` rows with the EXACT `ModelFile.name`s from design
+§2.1 — `pp_doclayout` (`doclayout.onnx` + `label_map.txt`), `pp_ocrv5_det` (`det.onnx`),
+`pp_ocrv5_rec` (`rec.onnx` + `rec_keys.txt` char dictionary), all Apache-2.0. **File names are the
+hard contract now; URL + SHA-256 are pin-on-first-fetch at adoption** (same honesty note as
+pix2tex — the placeholder `PIN_ON_FIRST_FETCH` URL + zeroed SHA fail loudly rather than fetch
+unverified bytes). If a stable official ONNX export URL is unavailable at adoption, the Apache-2.0
+`rapid-layout` / `rapidocr-onnxruntime` redistribution is pinned instead (same license + file-name
+contract) — a documented contingency, recorded in `docs/LICENSES.md`. The matching Apache-2.0
+rows were added to `docs/LICENSES.md` in this same change.
+
+### Fixtures
+
+Synthetic region-list fixtures (pure, no image): `engine/tests/fixtures/two_column.json`
+(interleaved two-column order + a right-margin equation number bound to its display equation) and
+`inline_math_para.json` (a one-line paragraph with text→math→text runs). The born-digital detector
+test builds typed `PdfTextSpan` inputs directly (the real ingest contract), NOT mocked OCR.
+
+### Feature tests
+
+```
+$ .venv/Scripts/python.exe -m pytest tests/test_layout_base.py tests/test_layout_factory.py \
+    tests/test_layout_born_digital.py tests/test_reading_order.py
+23 passed, 1 skipped, 1 warning in 0.60s
+    # the 1 skip = the factory build-with-weights test (pp_doclayout ONNX weights absent)
+
+$ .venv/Scripts/python.exe -m pytest tests/test_layout_ppdoclayout.py -rs
+SKIPPED [1] tests/test_layout_ppdoclayout.py:36: pp_doclayout ONNX weights absent; run model prefetch
+1 passed, 1 skipped, 1 warning in 0.38s
+    # the 1 pass = failure-injection (corrupt session -> empty LayoutResult, never raises);
+    # the 1 skip = the @pytest.mark.model real-weights test (skip-with-reason, never mocked)
+```
+
+### Full engine gate
+
+```
+$ .venv/Scripts/python.exe -m ruff check .
+All checks passed!
+
+$ .venv/Scripts/python.exe -m black --check . --line-length 100
+All done! ✨ 🍰 ✨
+72 files would be left unchanged.
+
+$ .venv/Scripts/python.exe -m mypy texora_engine
+Success: no issues found in 45 source files
+
+$ .venv/Scripts/python.exe -m pytest -q
+114 passed, 5 skipped, 4 warnings in 10.59s
+```
+
+The 5 skips = 3 M2 pix2tex model-gated tests (unchanged) + the 2 FEAT-003 model-gated layout tests
+(the factory build-with-weights test and the `@pytest.mark.model` PP-DocLayout real-weights test),
+all skip-with-reason when ONNX weights are absent — never mocked.
+
+PENDING / host-limited for FEAT-003:
+- **PP-DocLayout ONNX weights** — URL + SHA-256 are pin-on-first-fetch at adoption; the
+  `@pytest.mark.model` weight-backed test skips-with-reason until the weights are prefetched (same
+  gate as the M2 pix2tex real-model test). The failure-injection test runs WITHOUT weights and
+  proves the honesty invariant (corrupt session → empty `LayoutResult`, never raises).
+- **CUDA execution provider** — code-review-only on this CPU host; `CPUExecutionProvider` is the
+  tested path, CUDA EP wiring is reviewed and flagged PENDING.
+- **DocLayout-YOLO (AGPL)** — adapter present for local opt-in use but not installed, not
+  registered, and not exercised in the default path; `mypy` ignores the missing `doclayout_yolo`
+  import via the stub-less override list.

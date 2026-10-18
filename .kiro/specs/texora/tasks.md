@@ -68,10 +68,14 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
   renders PDF + each image format; DPI auto-raise unit test.
 - [x] **3.2 Preprocessing** — deskew/denoise/binarize/perspective/auto-crop, each toggleable.
   `dep:3.1` · `req: R-ING-4` · `done:` before/after fixtures; toggles respected.
-- [ ] **3.3 Layout adapter + default model** — DocLayout-YOLO region detect; **verify license**,
+- [x] **3.3 Layout adapter + default model** — DocLayout-YOLO region detect; **verify license**,
   mark opt-in if AGPL. `dep:3.1` · `req: R-LAY-1/3, R-LIC-2` · `done:` region types + bboxes on
-  fixtures; license recorded.
-- [ ] **3.4 Reading order** — XY-cut + column/eq-number handling. `dep:3.3` · `req: R-LAY-2` ·
+  fixtures; license recorded. _(License verified AGPL → DocLayout-YOLO is opt-in only and NOT
+  registered in the default factory; the permissive Apache-2.0 `pp_doclayout_onnx` + no-model
+  born-digital fast-path are the shipped default. The PP-DocLayout ONNX weight-backed test is
+  `@pytest.mark.model` and skips-with-reason until weights are pinned on first fetch — see
+  `docs/m3-verification.md`.)_
+- [x] **3.4 Reading order** — XY-cut + column/eq-number handling. `dep:3.3` · `req: R-LAY-2` ·
   `done:` multi-column fixture ordered correctly.
 - [ ] **3.5 Text OCR adapter** — PP-OCRv5 default, Tesseract fallback; EN + ID. `dep:3.3` ·
   `req: R-REC-1` · `done:` text accuracy sanity test EN + ID fixtures.

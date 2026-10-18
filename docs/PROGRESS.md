@@ -1,8 +1,40 @@
 # Texora — Build Progress Checkpoint
 
-Last updated: 2026-10-18 (M2 convergence) · Milestone: **M2 (single-image formula OCR)** ·
-Branch: `feat/m2-formula-ocr` (worktree `.worktrees/m2-formula-ocr`). NOT merged into `main`.
-M1 is complete and merged; M2 is implemented and **converged to green** on this host.
+Last updated: 2026-10-18 (M3 FEAT-003) · Milestone: **M3 (PDF pipeline → MD/LaTeX)** ·
+Branch: `feat/m3-pdf-pipeline` (worktree `.worktrees/m3-pdf-pipeline`). NOT merged into `main`.
+M1 and M2 are complete; M3 is in progress on this branch.
+
+## M3 feature status (tasks 3.1–3.7)
+
+| Feature | Tasks | Status | Notes |
+|---|---|---|---|
+| FEAT-001 foundation | deps + `pipeline.yaml` stages + typed ingest/settings | **DONE** | M3 runtime deps pinned (`pypdfium2` 5.14.0, `pillow-heif` 0.18.0, `onnxruntime` 1.19.2, `pytesseract` 0.3.13) + license rows; `pytest.mark.model`/`latex` markers registered. See `docs/m3-verification.md`. |
+| FEAT-002 ingest | 3.1 render/load/detect · 3.2 preprocess | **DONE** | `ingest/` package: pypdfium2 render (adaptive DPI + one-shot small-font raise), image loaders incl. HEIC/TIFF, born-digital/scanned detection, toggleable preprocessing. Single point→pixel conversion site. |
+| FEAT-003 layout | 3.3 layout Protocol + default · 3.4 reading order | **DONE** | `layout/` package implemented fresh as ONE coherent API: `LayoutDetector` Protocol + full `RegionType` taxonomy; permissive-only factory (`pp_doclayout_onnx`, Apache-2.0; AGPL `doclayout_yolo` present but unregistered/opt-in); no-model `born_digital` structural detector; pure XY-cut reading order with column + equation-number binding. Catalog pins 3 ONNX models (file names now, URL/SHA pin-on-first-fetch) + Apache-2.0 license rows. Full gate green. |
+| FEAT-004 text | 3.5 PP-OCRv5 + Tesseract (EN+ID) | pending | Not started. |
+| FEAT-005 assembler | 3.6 page assembly + `POST /pages/recognize` | pending | Not started. |
+| FEAT-006 export | 3.7 Markdown + LaTeX + golden files | pending | Not started. |
+
+### FEAT-003 gate (this change) — all green on this host
+`ruff check .` clean · `black --check . --line-length 100` clean · `mypy texora_engine` clean
+(45 files) · `pytest -q` → **114 passed, 5 skipped** (5 skips = 3 M2 pix2tex model-gated + 2 M3
+PP-DocLayout model-gated, all skip-with-reason when ONNX weights absent — never mocked). Full
+command output in `docs/m3-verification.md` §FEAT-003.
+
+### FEAT-003 PENDING / host-limited (recorded honestly, never claimed passed)
+- **PP-DocLayout ONNX weights** — URL + SHA-256 are pin-on-first-fetch at adoption; the
+  `@pytest.mark.model` weight-backed layout test skips-with-reason until weights are prefetched.
+  Failure-injection (corrupt session → empty `LayoutResult`, never raises) runs WITHOUT weights.
+- **CUDA execution provider** — code-review-only on this CPU host; `CPUExecutionProvider` is tested.
+- **DocLayout-YOLO (AGPL)** — opt-in adapter present but not installed, not registered, not in any
+  default path.
+
+---
+
+## M2 reference (complete; context for M3)
+
+M1 is complete and merged; M2 is implemented and **converged to green** on this host
+(`feat/m2-formula-ocr`). The M2 detail below is retained for context.
 
 ## M2 task status (tasks 2.1–2.6) — all DONE, all gates green
 

@@ -1,0 +1,11 @@
+{
+  "description": "Synthetic single-line paragraph carrying inline math: 'the energy <E=mc^2> is conserved'. The three runs sit on ONE horizontal band, left-to-right: TEXT 'the energy', INLINE_MATH 'E=mc^2', TEXT 'is conserved'. At the layout level the intra-block run order is left-to-right by x (design 6.4/6.5 two-level ordering); order() must yield text -> math -> text. Listed out of order on purpose. Page 1000x300 px.",
+  "width": 1000,
+  "height": 300,
+  "expected_order_ids": ["run_text_1", "run_math", "run_text_2"],
+  "regions": [
+    {"id": "run_math", "type": "inline_math", "bbox": {"x0": 280, "y0": 100, "x1": 420, "y1": 150}, "confidence": 0.8},
+    {"id": "run_text_1", "type": "paragraph", "bbox": {"x0": 40, "y0": 100, "x1": 250, "y1": 150}, "confidence": 0.9},
+    {"id": "run_text_2", "type": "paragraph", "bbox": {"x0": 450, "y0": 100, "x1": 700, "y1": 150}, "confidence": 0.9}
+  ]
+}
