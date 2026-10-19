@@ -8,7 +8,10 @@ version = "0.1.0"
 description = "Texora offline OCR engine sidecar (FastAPI + Uvicorn)."
 requires-python = ">=3.11,<3.12"
 license = { text = "MIT" }
-readme = "../README.md"
+# NOTE: no `readme` key — the repo README lives at the repo root (../README.md), outside this
+# package dir, which modern setuptools rejects for editable installs (`pip install -e .`). The long
+# description is not published anywhere (the engine is never uploaded to PyPI), so it is omitted so
+# the M4 `pip install -e ".[test]"` proof-harness install works.
 dependencies = [
     "fastapi==0.143.2",
     "uvicorn[standard]==0.54.0",
@@ -35,6 +38,13 @@ dev = [
     "ruff==0.6.9",
     "black==24.10.0",
     "mypy==1.11.2",
+]
+# TEST/CI-ONLY deps (NOT frozen into the PyInstaller sidecar — it ships only `dependencies`).
+# Used by the M4 5,000-page proof harness: reportlab generates the synthetic PDF, psutil samples
+# RSS for the memory-flatness assertion. License rows in docs/LICENSES.md (marked test/CI only).
+test = [
+    "reportlab==4.2.2",
+    "psutil==6.0.0",
 ]
 
 [tool.setuptools]
@@ -98,6 +108,8 @@ module = [
     "pyclipper.*",
     "shapely.*",
     "watchdog.*",
+    "reportlab.*",
+    "psutil",
 ]
 ignore_missing_imports = true
 

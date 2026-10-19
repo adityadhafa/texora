@@ -67,6 +67,8 @@ update the row.
 | ruff            | 0.6.9   | PyPI      | MIT          | Yes          | Yes          | Linter. Dev-only. |
 | black           | 24.10.0 | PyPI      | MIT          | Yes          | Yes          | Formatter. Dev-only. |
 | mypy            | 1.11.2  | PyPI      | MIT          | Yes          | Yes          | Static type checker. Dev-only. |
+| reportlab       | 4.2.2   | PyPI      | BSD-3-Clause | Yes          | Yes          | **M4.** Synthetic multi-page PDF generator for the 5,000-page proof harness (`scripts/make_synthetic_pdf.py`). **Test/CI only, NOT shipped** — declared under the `[test]` extra, never frozen into the PyInstaller sidecar. |
+| psutil          | 6.0.0   | PyPI      | BSD-3-Clause | Yes          | Yes          | **M4.** RSS sampling for the memory-flatness assertion (`benchmarks/job_proof`). **Test/CI only, NOT shipped** — `[test]` extra, not frozen into the sidecar. |
 
 ## Engine (Python 3.11) — build / packaging
 

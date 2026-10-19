@@ -268,6 +268,73 @@ $ .venv/Scripts/python.exe -m pytest tests/test_jobs_batch.py tests/test_jobs_wa
 $ .venv/Scripts/python.exe -m pytest                  -> 220 passed, 12 skipped, 1 xfailed
 ```
 
+---
+
+## Task 4.7 — 5,000-page proof: synthetic generator + memory/resume assertions (scaled local + CI nightly)
+
+**What landed.** `scripts/make_synthetic_pdf.py` (`reportlab`): a deterministic (seed-stable)
+N-page PDF with mixed text + math-like lines, CLI `python -m scripts.make_synthetic_pdf --pages N
+--out path.pdf [--seed S] [--hostile]` (the `--hostile` variant inserts one pathological oversize
+page). `benchmarks/job_proof/`: `test_memory_flat.py` (`psutil`) runs a job over a SCALED synthetic
+PDF with fast stub recognizers, samples RSS every 20 pages, and asserts the least-squares RSS-vs-
+pages slope is below 0.5 MiB/page and peak RSS is under 1500 MiB; `test_interrupt_resume.py` kills
+the runner mid-job (hard cancel, no graceful shutdown), reopens the DB, `recover_on_boot()`s,
+resumes, and asserts the final `done` set == the full index set with no duplicate rows (per-index
+render counter). `benchmarks/conftest.py` puts the engine + repo root on the path. The full
+5,000-page run is wired as the CI nightly job `.github/workflows/job-proof-nightly.yml`
+(`TEXORA_PROOF_PAGES` / `TEXORA_PROOF_RESUME_PAGES` default to 5000; a scaled run overrides them).
+
+**New dependencies (TEST/CI ONLY — NOT shipped):** `reportlab==4.2.2` (BSD-3-Clause),
+`psutil==6.0.0` (BSD-3-Clause), declared under `engine/pyproject.toml` `[project.optional-
+dependencies] test` (so the PyInstaller sidecar — which freezes only `dependencies` — never bundles
+them) + `engine/requirements-dev.txt` + the mypy override list + `docs/LICENSES.md` dev/test rows
+marked *test/CI only, not shipped*, all in this change. Also dropped the `readme = "../README.md"`
+pyproject key (it pointed outside the package dir and broke `pip install -e`, which the proof
+harness needs); the long description is never published.
+
+**Scaling honesty (design §12, DoD-1/2).** The invariants are proven LOCALLY at a scaled count
+(200-page memory, 40–60-page interrupt-resume — enough to see the RSS slope and a mid-job kill),
+fast enough for local CI. The FULL 5,000-page run is the nightly CI gate, NOT claimed as a local
+pass here. Nothing is faked — the synthetic PDF is a real document and the RSS numbers below are a
+real measurement captured on this host.
+
+**Real memory measurement (200-page scaled, fast stubs, `job_max_concurrent_pages=2`, dpi=72):**
+
+```
+pages= 20  rss= 91.3 MiB      pages=120  rss= 94.2 MiB
+pages= 40  rss= 92.6 MiB      pages=140  rss= 94.4 MiB
+pages= 60  rss= 93.6 MiB      pages=160  rss= 94.8 MiB
+pages= 80  rss= 93.7 MiB      pages=180  rss= 94.9 MiB
+pages=100  rss= 94.0 MiB      pages=200  rss= 88.2 MiB
+peak = 94.9 MiB   RSS slope = -0.0012 MiB/page   done = 200/200
+```
+
+RSS stays within ~88–95 MiB across 200 streamed pages — essentially flat (a near-zero / slightly
+negative slope; a true leak would grow linearly with pages). **Method:** sample `psutil.Process().
+memory_info().rss` every 20 completed pages during a real streaming job, fit a least-squares line of
+RSS (MiB) vs pages processed. **Kill-and-resume (40–60-page scaled):** after a hard mid-job cancel,
+`recover_on_boot` reverts the orphaned leases immediately and the resumed job reaches `done` over
+the full index set with no lost and no duplicate pages (each `done` page rendered exactly once; at
+most the single in-flight page re-rendered). The full 5,000-page assertions run nightly in CI.
+
+**Gate (green on this host):**
+
+```
+$ engine/.venv/Scripts/python.exe -m pip install -e ".[test]"   -> Successfully installed texora-engine-0.1.0
+$ engine/.venv/Scripts/python.exe -m scripts.make_synthetic_pdf --pages 3 --out /tmp/smoke.pdf  -> wrote ... (3 pages)
+$ TEXORA_PROOF_PAGES=200 pytest benchmarks/job_proof/test_memory_flat.py       -> 1 passed (123.67s)
+$ TEXORA_PROOF_PAGES=60 TEXORA_PROOF_RESUME_PAGES=40 pytest benchmarks/job_proof -> 2 passed (48.09s)
+$ .venv/Scripts/python.exe -m ruff check .            -> All checks passed!
+$ .venv/Scripts/python.exe -m black --check . --line-length 100  -> 121 files unchanged
+$ .venv/Scripts/python.exe -m mypy texora_engine      -> Success: no issues found in 70 source files
+$ .venv/Scripts/python.exe -m pytest                  -> 220 passed, 12 skipped, 1 xfailed
+```
+
+**PENDING (CI, recorded honestly, never claimed as a local pass):** the FULL 5,000-page memory +
+interrupt-resume assertions run on the `job-proof-nightly` workflow at the full count; locally only
+the scaled proof is executed.
+
+
 
 
 
