@@ -26,6 +26,7 @@ from texora_engine.db import jobs_dao, pages_dao, regions_dao
 from texora_engine.ingest.base import IngestError, RenderedPage
 from texora_engine.ingest.images import iter_image_pages
 from texora_engine.ingest.pdf import open_pdf, render_pdf_page
+from texora_engine.jobs.guard import PageResourceError, check_page_resources
 from texora_engine.jobs.models import JobOptions
 from texora_engine.jobs.output import write_page_outputs_idempotent
 from texora_engine.logging_config import get_logger
@@ -298,6 +299,9 @@ async def _process_leased(
     start = time.monotonic()
     token = _current_lease_token(conn, leased.id)
 
+    timeout_s = manager.settings.job_page_timeout_s
+    max_pixels = manager.settings.max_snip_pixels
+
     async with manager.semaphore:
         try:
             rendered, image = render()
@@ -308,11 +312,29 @@ async def _process_leased(
             return
 
         try:
-            result: PageResult = await loop.run_in_executor(
-                manager.pool, assemble_page, rendered, image, deps
+            # Resource guard: reject an oversize (decompression-bomb) page BEFORE recognition.
+            check_page_resources(rendered, max_pixels)
+            # Per-page wall-clock timeout around the whole assemble_page offload (design §5). On
+            # timeout the future is abandoned (a Python thread cannot be force-killed — the slot is
+            # freed when the native call returns; bounded by page_workers + the per-region timeout).
+            result: PageResult = await asyncio.wait_for(
+                loop.run_in_executor(manager.pool, assemble_page, rendered, image, deps),
+                timeout=timeout_s,
             )
             _commit_done(manager, job_id, leased, token, result)
             _after_page(manager, job_id, leased.page_index, "done", start)
+        except TimeoutError:
+            logger.warning(
+                "job %s page %d timed out after %.1fs", job_id, leased.page_index, timeout_s
+            )
+            pages_dao.mark_failed(
+                conn, leased.id, token, error="page timeout", finished_at=_now_iso()
+            )
+            _after_page(manager, job_id, leased.page_index, "failed", start)
+        except PageResourceError as exc:
+            logger.warning("job %s page %d rejected: %s", job_id, leased.page_index, exc)
+            pages_dao.mark_failed(conn, leased.id, token, error=str(exc), finished_at=_now_iso())
+            _after_page(manager, job_id, leased.page_index, "failed", start)
         except Exception as exc:  # noqa: BLE001 - per-page isolation (R-JOB-6)
             logger.warning("job %s page %d recognition failed: %s", job_id, leased.page_index, exc)
             pages_dao.mark_failed(conn, leased.id, token, error=str(exc), finished_at=_now_iso())

@@ -157,4 +157,38 @@ $ .venv/Scripts/python.exe -m pytest tests/test_export_fragment_concat.py tests/
 $ .venv/Scripts/python.exe -m pytest                  -> 195 passed, 12 skipped, 1 xfailed
 ```
 
+---
+
+## Task 4.5 — Failure isolation: per-page timeout + resource guard + retry-failed-only
+
+**What landed.** New `jobs/guard.py` (`PageResourceError` + `check_page_resources(rendered,
+max_pixels)` reusing the M2 `max_snip_pixels` bound). The runner now wraps the whole
+`assemble_page` offload in `asyncio.wait_for(..., timeout=job_page_timeout_s)` (on timeout the page
+is `failed` with `error="page timeout"`; the abandoned-thread trade-off is documented inline per
+§5), applies the resource guard before recognition, and catches ANY per-page exception → logs with
+page context → `mark_failed` → continues (a failed page never kills the job). A job finishes `done`
+when every page is attempted (non-zero `failed` surfaced in progress). `JobManager.retry_failed`
+calls `reset_failed_to_pending` (flips `failed → pending`, keeps `attempts`, `done` untouched) +
+re-enqueues.
+
+**New dependencies:** none. No LICENSES row.
+
+**Tests** (`tests/test_jobs_failure_isolation.py`): the resource guard rejects an oversize page and
+passes one within bound; a hostile page (stub raising for one index) is isolated as `failed` while
+the other 3 pages complete and the job finishes `done` with `failed==1`, then retry re-runs ONLY
+the failed index (a per-index processed-counter proves `done` pages are not re-run); a page that
+runs past `job_page_timeout_s` is marked `failed` with `error="page timeout"` (never reverted/
+re-leased while in flight) and the job still completes the other page.
+
+**Gate (green on this host):**
+
+```
+$ .venv/Scripts/python.exe -m ruff check .            -> All checks passed!
+$ .venv/Scripts/python.exe -m black --check . --line-length 100  -> all files unchanged
+$ .venv/Scripts/python.exe -m mypy texora_engine      -> Success: no issues found in 67 source files
+$ .venv/Scripts/python.exe -m pytest tests/test_jobs_failure_isolation.py  -> 3 passed
+$ .venv/Scripts/python.exe -m pytest                  -> 198 passed, 12 skipped, 1 xfailed
+```
+
+
 

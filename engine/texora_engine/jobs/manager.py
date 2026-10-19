@@ -281,6 +281,25 @@ class JobManager:
         self._handles.clear()
         self._pool.shutdown(wait=True)
 
+    # --- retry (design §5 retry-failed-only) ----------------------------------------------
+
+    def retry_failed(self, job_id: str) -> int:
+        """Flip a job's ``failed`` pages back to ``pending`` and re-enqueue the job.
+
+        Only ``failed`` rows move; ``done`` rows are untouched, so no completed page is re-run
+        (design §5). Returns the number of pages reset. Re-enqueues a non-running job.
+        """
+
+        reset = pages_dao.reset_failed_to_pending(self._conn, job_id)
+        job = jobs_dao.get_job(self._conn, job_id)
+        if job is None:
+            return reset
+        jobs_dao.set_status(self._conn, job_id, "running", updated_at=_now_iso())
+        existing = self._handles.get(job_id)
+        if existing is None or existing.task is None or existing.task.done():
+            self._start_job_task(job_id)
+        return reset
+
     # --- progress --------------------------------------------------------------------------
 
     def progress(self, job_id: str) -> JobProgress:

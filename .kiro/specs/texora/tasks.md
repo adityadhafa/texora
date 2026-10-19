@@ -105,7 +105,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
   `dep:4.2` · `req: R-JOB-2` · `done:` kill mid-job → resume with no lost/dup pages (DoD-2).
 - [ ] **4.4 Job control API + WS** — pause/resume/cancel/reprioritize, page ranges/lists, progress
   events (ETA, pages/min). `dep:4.2` · `req: R-JOB-3/5` · `done:` control actions verified; WS emits.
-- [ ] **4.5 Failure isolation** — per-page timeout + resource guard, retry-failed-only. `dep:4.2` ·
+- [x] **4.5 Failure isolation** — per-page timeout + resource guard, retry-failed-only. `dep:4.2` ·
   `req: R-JOB-6, R-SEC-3` · `done:` hostile-page fixture fails page, job completes, retry works.
 - [ ] **4.6 Batch + watch folder** — multi-file/folder intake; auto-process new files. `dep:4.4` ·
   `req: R-JOB-7` · `done:` dropping files/new file in watched dir enqueues jobs.
