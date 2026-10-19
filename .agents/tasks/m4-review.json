@@ -1,0 +1,7 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    "Task 4.8 (Queue UI + incremental output) is not implemented: the diff contains no apps/desktop or src-tauri changes (confirmed via git diff main...feat/m4-jobs --stat and the commit list), tasks.md §M4 marks 4.8 as [ ], and docs/m4-verification.md stops at task 4.7. Its done: criterion 'E2E shows live per-page progress' has no evidence. The single typed engineClient invariant, the Rust tungstenite progress bridge, and i18next id/en parity were therefore not verified because none were built. M4 as scoped in the plan (tasks 4.1-4.8) is not complete. Implement 4.8 — or have the workflow owner explicitly re-scope M4 to the engine-only 4.1-4.7 and defer 4.8 — before the milestone is closed."
+  ],
+  "reviewDoc": "c:\\data\\kucing\\texora\\.worktrees\\m4-jobs/.agents/tasks/m4-review.md"
+}
