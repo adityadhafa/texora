@@ -71,3 +71,45 @@ $ .venv/Scripts/python.exe -m pytest tests/test_db_migrations.py tests/test_jobs
       tests/test_pages_dao.py tests/test_fts_dao.py   -> 20 passed
 $ .venv/Scripts/python.exe -m pytest                  -> 171 passed, 12 skipped, 1 xfailed
 ```
+
+---
+
+## Task 4.2 — Streaming job runner + manager + per-page lease loop
+
+**What landed.** New `jobs/` package: `jobs/models.py` (`JobOptions`/`JobProgress`/`ProgressEvent`
+Pydantic v2 models), `jobs/manager.py` (`JobManager` on `app.state.job_manager`: one global
+`asyncio.Semaphore(job_max_concurrent_pages)`, one `ThreadPoolExecutor(job_page_workers)`, a
+`dict[str, JobHandle]` with per-job `asyncio.Task` + pause `asyncio.Event` + cancel flag + an EWMA
+rate tracker + a WS-subscriber list; `create_job` enrolls the owned index set in ONE transaction
+and starts the runner task), `jobs/runner.py` (`run_job`/`_run_job`: the §3.1 lease loop — build
+deps once in a top-level guard, per owned page `lease_next` → render → offload `assemble_page` to
+the pool under the semaphore → `mark_done`/`mark_failed` → `emit_progress`, freeing the bitmap in
+`finally`). PDFs render via the indexed `render_pdf_page` on a single `open_pdf` handle (resume
+renders only owned indices); images via the new lazy `iter_image_pages` with pre-resume frames
+decoded-and-skipped. Added `pipeline/deps.py::get_or_build_deps(app_state)` (Request-free shared
+provider) and refactored `api/pages._get_deps` to a thin wrapper. Added the bounded job settings +
+the `job_page_timeout_s < job_lease_ttl_s` cross-field validator. Added
+`ingest.images.iter_image_pages` + `image_frame_count` (eager `load_image_pages` untouched).
+
+**New dependencies:** none (stdlib `asyncio` + `concurrent.futures`). No LICENSES row.
+
+**Tests** (`tests/test_jobs_runner.py`, `tests/test_iter_image_pages.py`,
+`tests/test_get_or_build_deps.py`, `tests/test_settings.py`, harness `tests/_job_harness.py` with
+fast stub recognizers + a REAL minimal multi-page PDF writer — no mock OCR): a 5-page synthetic PDF
+job reaches all pages `done`; range + explicit-list enrollment (out-of-range indices dropped); the
+semaphore caps in-flight pages (peak ≤ cap); a 2-frame TIFF streams to `done`; `iter_image_pages`
+yields one frame at a time and `image_frame_count` matches; `get_or_build_deps` tolerates a missing
+`pipeline_deps` attr (raises `ModelNotReady`, not `AttributeError`) and returns a cached instance;
+the timeout/lease-TTL validator rejects an invalid config.
+
+**Gate (green on this host):**
+
+```
+$ .venv/Scripts/python.exe -m ruff check .            -> All checks passed!
+$ .venv/Scripts/python.exe -m black --check . --line-length 100  -> all files unchanged
+$ .venv/Scripts/python.exe -m mypy texora_engine      -> Success: no issues found in 64 source files
+$ .venv/Scripts/python.exe -m pytest tests/test_jobs_runner.py tests/test_iter_image_pages.py \
+      tests/test_get_or_build_deps.py tests/test_settings.py  -> 16 passed
+$ .venv/Scripts/python.exe -m pytest                  -> 183 passed, 12 skipped, 1 xfailed
+```
+

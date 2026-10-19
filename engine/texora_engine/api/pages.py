@@ -23,21 +23,18 @@ from texora_engine.ingest.pdf import iter_pdf_pages
 from texora_engine.layout.factory import (
     LayoutStageNotConfigured,
     UnknownLayoutEngineError,
-    build_layout_detector,
 )
 from texora_engine.logging_config import get_logger
 from texora_engine.models.errors import ModelNotReady
 from texora_engine.pipeline import DocumentResult, PageResult, PipelineDeps, assemble_page
-from texora_engine.pipeline_config import load_pipeline_config
+from texora_engine.pipeline.deps import get_or_build_deps
 from texora_engine.recognizers.factory import (
     FormulaStageNotConfigured,
     UnknownEngineError,
-    build_formula_recognizer,
 )
 from texora_engine.recognizers.text_factory import (
     TextStageNotConfigured,
     UnknownTextEngineError,
-    build_text_recognizer,
 )
 from texora_engine.recognizers.text_tesseract import TesseractUnavailable
 from texora_engine.security import require_token
@@ -95,24 +92,9 @@ def _validate_path(raw: str) -> Path:
 
 
 def _get_deps(request: Request) -> PipelineDeps:
-    """Build + cache the PipelineDeps on app.state (lazy, needs downloaded weights)."""
+    """Thin wrapper over the shared Request-free provider (design §11)."""
 
-    cached: PipelineDeps | None = request.app.state.pipeline_deps
-    if cached is not None:
-        return cached
-    settings = request.app.state.settings
-    store = request.app.state.model_store
-    cfg = load_pipeline_config()
-    deps = PipelineDeps(
-        layout=build_layout_detector(settings, store),
-        text=build_text_recognizer(settings, store),
-        formula=build_formula_recognizer(settings, store),
-        settings=settings,
-        pipeline_config=cfg,
-        asset_dir=Path(settings.figure_asset_dir),
-    )
-    request.app.state.pipeline_deps = deps
-    return deps
+    return get_or_build_deps(request.app.state)
 
 
 def _page_in_range(idx: int, start: int | None, end: int | None) -> bool:

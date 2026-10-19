@@ -47,3 +47,28 @@ def test_m3_env_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     assert s.text_fallback_to_tesseract is False
     assert s.tesseract_cmd == "/usr/bin/tesseract"
     assert s.export_preamble == "amsart"
+
+
+def test_m4_job_defaults() -> None:
+    s = Settings()
+    assert s.job_max_concurrent_pages == 2
+    assert s.job_page_workers == 1  # serializes the shared torch model (HIGH-2)
+    assert s.job_lease_ttl_s == 300.0
+    assert s.job_page_timeout_s == 120.0
+    assert s.job_lease_sweep_s == 30.0
+    assert str(s.job_output_dir) == "output"
+    assert s.watch_dir is None
+    assert s.watch_settle_s == 2.0
+    assert s.ws_token_timeout_s == 5.0
+
+
+def test_m4_timeout_must_be_less_than_lease_ttl() -> None:
+    # The cross-field validator rejects an invalid config at load time (HIGH-3).
+    with pytest.raises(ValueError, match="job_page_timeout_s must be < job_lease_ttl_s"):
+        Settings(job_page_timeout_s=300.0, job_lease_ttl_s=120.0)
+    # Equality is also rejected.
+    with pytest.raises(ValueError):
+        Settings(job_page_timeout_s=100.0, job_lease_ttl_s=100.0)
+    # A valid pairing loads fine.
+    s = Settings(job_page_timeout_s=10.0, job_lease_ttl_s=20.0)
+    assert s.job_page_timeout_s == 10.0

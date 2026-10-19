@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -112,3 +112,69 @@ class Settings(BaseSettings):
         default=Path("assets"),
         description="Directory (relative to the export target) for extracted figure assets.",
     )
+
+    # --- Job queue (M4, design §3.4) ---
+    job_max_concurrent_pages: int = Field(
+        default=2,
+        ge=1,
+        le=64,
+        description="Global in-flight page cap across all jobs (the memory valve).",
+    )
+    job_page_workers: int = Field(
+        default=1,
+        ge=1,
+        le=64,
+        description=(
+            "Thread-pool size for assemble_page. 1 serializes the shared torch model (HIGH-2); "
+            ">1 is an M7 seam gated on a per-model inference lock."
+        ),
+    )
+    job_lease_ttl_s: float = Field(
+        default=300.0,
+        gt=0,
+        description="Lease lifetime; a crashed lease older than this reverts. Must be > timeout.",
+    )
+    job_page_timeout_s: float = Field(
+        default=120.0,
+        gt=0,
+        description="Whole-page wall-clock timeout. Must be < job_lease_ttl_s (HIGH-3).",
+    )
+    job_lease_sweep_s: float = Field(
+        default=30.0,
+        gt=0,
+        description="Interval of the background expired-lease sweeper (an asyncio task).",
+    )
+    job_output_dir: Path = Field(
+        default=Path("output"),
+        description="Root directory for streamed per-page export artifacts.",
+    )
+    watch_dir: Path | None = Field(
+        default=None,
+        description="Watch-folder path; None disables watch mode.",
+    )
+    watch_settle_s: float = Field(
+        default=2.0,
+        gt=0,
+        description="Quiet period a new file must be size-stable before enqueue.",
+    )
+    ws_token_timeout_s: float = Field(
+        default=5.0,
+        gt=0,
+        description="Fallback-path wait for the first WS token frame before close(4401).",
+    )
+
+    @model_validator(mode="after")
+    def _validate_timeout_lt_lease(self) -> Settings:
+        """Enforce ``job_page_timeout_s < job_lease_ttl_s`` (design §3.4, HIGH-3).
+
+        This is the invariant that makes lease renewal unnecessary: a live page is force-failed
+        by its wall-clock timeout strictly before its lease could expire, so the sweeper only ever
+        reclaims a crashed lease.
+        """
+
+        if self.job_page_timeout_s >= self.job_lease_ttl_s:
+            raise ValueError(
+                "job_page_timeout_s must be < job_lease_ttl_s "
+                f"(got {self.job_page_timeout_s} >= {self.job_lease_ttl_s})"
+            )
+        return self

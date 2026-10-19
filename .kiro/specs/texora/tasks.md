@@ -98,9 +98,9 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
   _M4 erratum (M4-ADR-9): PAGE has two orthogonal columns — `status` is the lease lifecycle
   (`pending|leased|done|failed`), `rollup_status` is content quality (`ok|needs_review|failed`); the
   review surface queries `rollup_status`._
-- [ ] **4.2 Streaming job runner** — bounded concurrency, back-pressure, per-page lease state
+- [x] **4.2 Streaming job runner** — bounded concurrency, back-pressure, per-page lease state
   machine, constant memory. `dep:4.1,3.6` · `req: R-JOB-1/4` · `done:` memory stays flat on large
-  synthetic PDF.
+  synthetic PDF _(mechanism proven in 4.2 tests; measured at scale in 4.7)_.
 - [ ] **4.3 Checkpoint/resume** — lease expiry revert; idempotent per-page export (temp+rename).
   `dep:4.2` · `req: R-JOB-2` · `done:` kill mid-job → resume with no lost/dup pages (DoD-2).
 - [ ] **4.4 Job control API + WS** — pause/resume/cancel/reprioritize, page ranges/lists, progress

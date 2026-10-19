@@ -132,6 +132,63 @@ def load_image_pages(
     return results
 
 
+def iter_image_pages(
+    path: str | Path,
+    settings: Settings,
+) -> Iterator[tuple[RenderedPage, Image.Image]]:
+    """Lazily yield one ``(RenderedPage, RGB Image)`` per frame, one bitmap at a time.
+
+    Mirrors :func:`texora_engine.ingest.pdf.iter_pdf_pages`: loads + converts ONE frame at a time
+    via ``ImageSequence.Iterator``, applies the same :class:`ImageBounds` guards, and never holds
+    more than the current frame's bitmap (design §2.1, MEDIUM-1). The caller owns and MUST close
+    each yielded image before requesting the next. The eager :func:`load_image_pages` is left
+    untouched for the small-image synchronous routes.
+    """
+
+    file_path = Path(path)
+    bounds = ImageBounds(settings)
+    with _open_image(file_path, bounds) as image:
+        try:
+            iterator = ImageSequence.Iterator(image)
+        except (OSError, ValueError, SyntaxError) as exc:
+            raise IngestError(f"could not iterate frames of {file_path!s}: {exc}") from exc
+
+        for index, frame in enumerate(iterator):
+            try:
+                frame.load()
+            except (OSError, Image.DecompressionBombError, ValueError) as exc:
+                raise IngestError(
+                    f"could not decode frame {index} of {file_path!s}: {exc}"
+                ) from exc
+            try:
+                _check_dimensions(frame, bounds)
+                rgb = _to_rgb(frame)
+            except Image.DecompressionBombError as exc:
+                raise IngestError(f"image frame {index} is a decompression bomb: {exc}") from exc
+
+            rendered = RenderedPage(
+                index=index,
+                width=rgb.width,
+                height=rgb.height,
+                dpi=settings_render_dpi(),
+                kind=SourceKind.IMAGE,
+                text_layer=None,
+            )
+            yield rendered, rgb
+
+
+def image_frame_count(path: str | Path, settings: Settings) -> int:
+    """Return the number of frames in an image file (one open, no bitmap decode — design §6.1)."""
+
+    file_path = Path(path)
+    bounds = ImageBounds(settings)
+    with _open_image(file_path, bounds) as image:
+        try:
+            return sum(1 for _ in ImageSequence.Iterator(image))
+        except (OSError, ValueError, SyntaxError) as exc:
+            raise IngestError(f"could not iterate frames of {file_path!s}: {exc}") from exc
+
+
 def _close_all(pairs: list[tuple[RenderedPage, Image.Image]]) -> None:
     """Close already-produced images when a later frame fails (no leaks on error)."""
 
