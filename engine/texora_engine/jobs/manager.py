@@ -210,9 +210,15 @@ class JobManager:
     def _start_job_task(self, job_id: str, *, paused: bool = False) -> None:
         from texora_engine.jobs.runner import run_job
 
-        handle = JobHandle(job_id=job_id)
+        # Preserve any subscribers already registered on a placeholder handle (a WS that connected
+        # before the job task started), rather than discarding them with a fresh handle.
+        existing = self._handles.get(job_id)
+        handle = existing if existing is not None else JobHandle(job_id=job_id)
+        handle.cancel_requested = False
         if paused:
             handle.pause_gate.clear()
+        else:
+            handle.pause_gate.set()
         self._handles[job_id] = handle
         loop = self._loop or asyncio.get_event_loop()
         handle.task = loop.create_task(run_job(self, job_id))
@@ -280,6 +286,63 @@ class JobManager:
                     pass
         self._handles.clear()
         self._pool.shutdown(wait=True)
+
+    # --- control actions (design §9.1) -----------------------------------------------------
+
+    def pause(self, job_id: str) -> None:
+        """Pause a running/queued job: the loop blocks at the pause gate holding no page."""
+
+        handle = self._handles.get(job_id)
+        if handle is not None:
+            handle.pause_gate.clear()
+        jobs_dao.set_status(self._conn, job_id, "paused", updated_at=_now_iso())
+        self.emit_progress(job_id, status="paused")
+
+    def resume(self, job_id: str) -> None:
+        """Resume a paused job: open the pause gate (re-enqueue if its task is gone)."""
+
+        jobs_dao.set_status(self._conn, job_id, "running", updated_at=_now_iso())
+        handle = self._handles.get(job_id)
+        if handle is None or handle.task is None or handle.task.done():
+            self._start_job_task(job_id)
+        else:
+            handle.pause_gate.set()
+        self.emit_progress(job_id, status="running")
+
+    def cancel(self, job_id: str) -> None:
+        """Cancel a job: set the cancel flag + unblock the gate so the loop exits and finalizes."""
+
+        handle = self._handles.get(job_id)
+        if handle is not None:
+            handle.cancel_requested = True
+            handle.pause_gate.set()
+            if handle.task is None or handle.task.done():
+                jobs_dao.set_status(self._conn, job_id, "canceled", updated_at=_now_iso())
+                self.emit_progress(job_id, status="canceled", terminal=True)
+        else:
+            jobs_dao.set_status(self._conn, job_id, "canceled", updated_at=_now_iso())
+            self.emit_progress(job_id, status="canceled", terminal=True)
+
+    def reprioritize(self, job_id: str, priority: int) -> None:
+        """Update a job's scheduling priority (clamped by the caller)."""
+
+        jobs_dao.set_priority(self._conn, job_id, priority, updated_at=_now_iso())
+
+    # --- WS subscriber registry (design §9.2/§9.3) -----------------------------------------
+
+    def subscribe(self, job_id: str, send: Any) -> None:
+        """Register an async ``send(event)`` callable for a job's progress stream."""
+
+        handle = self._handles.get(job_id)
+        if handle is None:
+            handle = JobHandle(job_id=job_id)
+            self._handles[job_id] = handle
+        handle.subscribers.append(send)
+
+    def unsubscribe(self, job_id: str, send: Any) -> None:
+        handle = self._handles.get(job_id)
+        if handle is not None and send in handle.subscribers:
+            handle.subscribers.remove(send)
 
     # --- retry (design §5 retry-failed-only) ----------------------------------------------
 

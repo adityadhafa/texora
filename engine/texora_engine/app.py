@@ -8,6 +8,8 @@ health router plus the token-protected routers (engine info, recognize, hardware
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import FastAPI
 from PIL import Image
 
@@ -20,7 +22,9 @@ from texora_engine.api import (
     protected_router,
     recognize_router,
 )
+from texora_engine.api.jobs import jobs_router, jobs_ws_router
 from texora_engine.db import init_db
+from texora_engine.jobs.manager import JobManager
 from texora_engine.logging_config import configure_logging
 from texora_engine.models.store import ModelStore
 from texora_engine.settings import Settings
@@ -49,6 +53,8 @@ def create_app(settings: Settings) -> FastAPI:
     app.state.model_store = ModelStore(conn, settings)
     app.state.formula_recognizer = None  # cached singleton, set on first /recognize/snip
     app.state.pipeline_deps = None  # cached PipelineDeps, set on first /pages/recognize
+    app.state.job_manager = None  # constructed on startup (needs the running event loop)
+    app.state.watch_observer = None  # watchdog Observer, started on startup if configured
 
     app.include_router(health_router)
     app.include_router(protected_router)
@@ -56,6 +62,32 @@ def create_app(settings: Settings) -> FastAPI:
     app.include_router(hardware_router)
     app.include_router(models_router)
     app.include_router(pages_router)
+    app.include_router(jobs_router)
+    app.include_router(jobs_ws_router)
+
+    @app.on_event("startup")
+    async def _startup() -> None:
+        # Build the JobManager on the running loop, recover orphaned leases, start the sweeper.
+        manager = JobManager(
+            conn,
+            app_state=app.state,
+            settings=settings,
+            loop=asyncio.get_event_loop(),
+        )
+        app.state.job_manager = manager
+        manager.recover_on_boot()
+        manager.start_sweeper()
+        logger.info("job manager started; recovered orphaned leases")
+
+    @app.on_event("shutdown")
+    async def _shutdown() -> None:
+        manager = getattr(app.state, "job_manager", None)
+        if manager is not None:
+            await manager.shutdown()
+        observer = getattr(app.state, "watch_observer", None)
+        if observer is not None:
+            observer.stop()
+            observer.join(timeout=5)
 
     logger.info(
         "engine app created host=%s port=%s token_set=%s db=%s",

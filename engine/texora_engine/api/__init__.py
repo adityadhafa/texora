@@ -1,6 +1,7 @@
 """FastAPI routers for the Texora engine."""
 
 from texora_engine.api.hardware import hardware_router
+from texora_engine.api.jobs import jobs_router
 from texora_engine.api.models import models_router
 from texora_engine.api.pages import pages_router
 from texora_engine.api.recognize import recognize_router
@@ -9,6 +10,7 @@ from texora_engine.api.routes import health_router, protected_router
 __all__ = [
     "hardware_router",
     "health_router",
+    "jobs_router",
     "models_router",
     "pages_router",
     "protected_router",

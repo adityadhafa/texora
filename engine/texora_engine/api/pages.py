@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from texora_engine.ingest.base import IngestError
 from texora_engine.ingest.images import load_image_pages
 from texora_engine.ingest.pdf import iter_pdf_pages
+from texora_engine.jobs.paths import PathValidationError, validate_source_path
 from texora_engine.layout.factory import (
     LayoutStageNotConfigured,
     UnknownLayoutEngineError,
@@ -63,32 +64,15 @@ class PagesRequest(BaseModel):
 
 
 def _validate_path(raw: str) -> Path:
-    """Resolve + sanitize the input path; raise 422 on anything suspicious or unsupported."""
+    """Resolve + sanitize the input path via the shared validator; raise 422 on failure."""
 
-    if ".." in Path(raw).parts:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="path traversal ('..') is not allowed",
-        )
     try:
-        resolved = Path(raw).resolve(strict=True)
-    except (OSError, RuntimeError) as exc:
+        return validate_source_path(raw)
+    except PathValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"path does not exist or is not accessible: {exc}",
+            detail=str(exc),
         ) from exc
-    if not resolved.is_file():
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="path is not a regular file",
-        )
-    ext = resolved.suffix.lower()
-    if ext not in _PDF_EXTS and ext not in _IMAGE_EXTS:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"unsupported file extension {ext!r}",
-        )
-    return resolved
 
 
 def _get_deps(request: Request) -> PipelineDeps:

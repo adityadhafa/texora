@@ -190,5 +190,49 @@ $ .venv/Scripts/python.exe -m pytest tests/test_jobs_failure_isolation.py  -> 3 
 $ .venv/Scripts/python.exe -m pytest                  -> 198 passed, 12 skipped, 1 xfailed
 ```
 
+---
+
+## Task 4.4 — Job control REST API + bearer-protected progress WebSocket
+
+**What landed.** New `jobs/paths.py` (`validate_source_path` / `PathValidationError` /
+`is_supported_file`, factored from `api/pages._validate_path`, which now wraps it). New
+`api/jobs.py`: a `jobs_router` (`Depends(require_token)`) with `POST /jobs`, `POST /jobs/batch`,
+`GET /jobs`, `GET /jobs/{id}`, `POST /jobs/{id}:pause|:resume|:cancel|:reprioritize`,
+`POST /jobs/{id}/pages:retry-failed`, `GET /jobs/{id}/export?format=md|tex|json` (a
+`StreamingResponse` over the committed set with in-order placeholders + a `Content-Disposition`
+filename), `GET /search?q=` (FTS). A SEPARATE `jobs_ws_router` carries `WS /jobs/{id}/events` and
+does its OWN bearer validation (header path pre-`accept()`; message-token fallback post-`accept()`
+under `ws_token_timeout_s`; `close(4401)` on mismatch/timeout) — the WS is NOT on the HTTP-dependency
+router because `HTTPBearer` cannot run on a WebSocket scope. Error mapping mirrors `api/pages`:
+bad path/format → 422, unknown id → 404, invalid-for-state action → 409, missing token → 401.
+`JobManager` gained `pause`/`resume`/`cancel`/`reprioritize` + the WS subscriber registry
+(`subscribe`/`unsubscribe`, preserved across task (re)starts). `app.py` builds the `JobManager` on
+startup, `recover_on_boot()`s, starts the sweeper, mounts both routers, and `shutdown()`s the
+manager + watch observer on app exit.
+
+**New dependencies:** none. No LICENSES row.
+
+**Tests** (`tests/test_jobs_api.py`, `tests/test_jobs_ws.py` — `TestClient` + a stub-deps
+`JobManager` swapped onto `app.state` sharing the app's loop/conn): REST needs a token (401
+without); a 5-page job runs to `done` and `GET …/export?format=md` returns `text/markdown` with a
+filename; unknown id → 404; bad format/path → 422; resume a `done` job → 409; reprioritize clamps to
+`[-100,100]`; `GET /search` validates (`q` empty → 422) and returns a list; retry-failed re-runs
+only the failed page; a deps-build failure at job start fails the JOB (`error="models not ready: …"`,
+no page leased) without crashing the task (MEDIUM-F4); mid-job export emits in-order placeholders for
+pending pages. WS: header-mismatch closes 4401 pre-accept; fallback timeout closes 4401; a valid
+header token receives the snapshot + a terminal `ProgressEvent`; a valid message-token (fallback)
+receives the snapshot.
+
+**Gate (green on this host):**
+
+```
+$ .venv/Scripts/python.exe -m ruff check .            -> All checks passed!
+$ .venv/Scripts/python.exe -m black --check . --line-length 100  -> 118 files unchanged
+$ .venv/Scripts/python.exe -m mypy texora_engine      -> Success: no issues found in 69 source files
+$ .venv/Scripts/python.exe -m pytest tests/test_jobs_api.py tests/test_jobs_ws.py  -> 15 passed
+$ .venv/Scripts/python.exe -m pytest                  -> 213 passed, 12 skipped, 1 xfailed
+```
+
+
 
 
