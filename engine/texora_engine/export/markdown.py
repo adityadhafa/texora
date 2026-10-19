@@ -70,6 +70,20 @@ def document_to_markdown(doc: DocumentResult, opts: MarkdownOptions | None = Non
     return body + "\n" if body else "\n"
 
 
+def render_page_markdown(page: PageResult, opts: MarkdownOptions | None = None) -> str:
+    """Render ONE page's blocks to a Markdown body fragment (design §7.1, M4).
+
+    A body fragment: the page's blocks joined with ``"\\n\\n"`` with NO document wrapper and NO
+    leading/trailing-newline normalization. Empty blocks are filtered exactly as
+    :func:`document_to_markdown` filters its flat block list, so concatenating these fragments is
+    byte-identical to the whole-document exporter (the empty-fragment filter at concat handles a
+    page that renders zero blocks).
+    """
+
+    options = opts or MarkdownOptions()
+    return "\n\n".join(b for b in _render_page(page, options) if b != "")
+
+
 def _render_page(page: PageResult, opts: MarkdownOptions) -> list[str]:
     """Render one page's regions (already in reading order) to Markdown blocks."""
 

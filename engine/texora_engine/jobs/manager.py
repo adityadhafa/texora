@@ -207,13 +207,79 @@ class JobManager:
         self._start_job_task(job_id)
         return jobs_dao.get_job(self._conn, job_id) or job
 
-    def _start_job_task(self, job_id: str) -> None:
+    def _start_job_task(self, job_id: str, *, paused: bool = False) -> None:
         from texora_engine.jobs.runner import run_job
 
         handle = JobHandle(job_id=job_id)
+        if paused:
+            handle.pause_gate.clear()
         self._handles[job_id] = handle
         loop = self._loop or asyncio.get_event_loop()
         handle.task = loop.create_task(run_job(self, job_id))
+
+    # --- checkpoint / resume (design §6.2) -------------------------------------------------
+
+    def recover_on_boot(self) -> None:
+        """Revert orphaned leases + re-enqueue non-terminal jobs. Called once at startup.
+
+        Step 1 (design §6.2): unconditionally revert EVERY leased row of a non-terminal job via
+        ``revert_all_leased_for_active_jobs`` (immediate resume, not TTL-delayed; safe because
+        exactly one engine process exists). Step 2: re-enqueue each ``running|paused|queued`` job
+        (a paused job stays paused). It NEVER re-enrolls — enrollment ran once at create (§6.1).
+        """
+
+        reverted = pages_dao.revert_all_leased_for_active_jobs(self._conn)
+        if reverted:
+            logger.info("recover_on_boot: reverted %d orphaned lease(s) to pending", reverted)
+        for status in jobs_dao.ACTIVE_JOB_STATUSES:
+            for job in jobs_dao.list_jobs(self._conn, status=status, limit=100_000):
+                if job.id in self._handles:
+                    continue
+                self._start_job_task(job.id, paused=(job.status == "paused"))
+
+    def start_sweeper(self) -> None:
+        """Start the periodic expired-lease sweeper (an asyncio task on the loop, design §6.2)."""
+
+        if self._sweeper_task is not None:
+            return
+        loop = self._loop or asyncio.get_event_loop()
+        self._sweeper_task = loop.create_task(self._sweep_loop())
+
+    async def _sweep_loop(self) -> None:
+        interval = self._settings.job_lease_sweep_s
+        try:
+            while True:
+                await asyncio.sleep(interval)
+                reverted = pages_dao.revert_expired_leases(self._conn, _now_iso())
+                if reverted:
+                    logger.info("sweeper reverted %d expired lease(s)", reverted)
+        except asyncio.CancelledError:
+            raise
+
+    async def shutdown(self) -> None:
+        """Graceful checkpoint on app exit (design §6.3): cancel tasks, await, stop the pool."""
+
+        if self._sweeper_task is not None:
+            self._sweeper_task.cancel()
+            try:
+                await self._sweeper_task
+            except asyncio.CancelledError:
+                pass
+            self._sweeper_task = None
+
+        for handle in list(self._handles.values()):
+            handle.cancel_requested = True
+            handle.pause_gate.set()  # unblock a paused loop so it can observe the cancel
+            if handle.task is not None:
+                handle.task.cancel()
+        for handle in list(self._handles.values()):
+            if handle.task is not None:
+                try:
+                    await handle.task
+                except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                    pass
+        self._handles.clear()
+        self._pool.shutdown(wait=True)
 
     # --- progress --------------------------------------------------------------------------
 

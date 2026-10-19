@@ -121,3 +121,31 @@ def build_sample_document() -> DocumentResult:
         status=RecognitionStatus.NEEDS_REVIEW,
     )
     return DocumentResult(source_name="doc_sample", pages=[page])
+
+
+def build_empty_page(index: int) -> PageResult:
+    """A committed page that renders ZERO blocks (a blank page) — exercises the empty-fragment
+    filter (design §7.1 MEDIUM-1): its md/tex body fragment is ``""`` and must contribute no
+    separator at concat, byte-identical to the whole-document exporter."""
+
+    return PageResult(
+        index=index,
+        width=612,
+        height=792,
+        dpi=260,
+        kind=SourceKind.PDF_BORN_DIGITAL,
+        contents=[],
+        status=RecognitionStatus.OK,
+    )
+
+
+def build_multipage_document_with_empty() -> DocumentResult:
+    """A multi-page document: a content page, an EMPTY page, then another content page (indices
+    0,1,2). Used by the M4 fragment-concat golden to prove the empty-fragment filter + the
+    committed-subset byte-equivalence against the whole-document exporters."""
+
+    base = build_sample_document().pages[0]
+    p0 = base.model_copy(update={"index": 0})
+    p1 = build_empty_page(1)
+    p2 = base.model_copy(update={"index": 2})
+    return DocumentResult(source_name="doc_sample", pages=[p0, p1, p2])

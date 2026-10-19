@@ -113,3 +113,48 @@ $ .venv/Scripts/python.exe -m pytest tests/test_jobs_runner.py tests/test_iter_i
 $ .venv/Scripts/python.exe -m pytest                  -> 183 passed, 12 skipped, 1 xfailed
 ```
 
+---
+
+## Task 4.3 — Checkpoint/resume + idempotent per-page export writer + reference JSON exporter
+
+**What landed.** `JobManager.recover_on_boot()` (calls `revert_all_leased_for_active_jobs()`
+unconditionally, then re-enqueues each `running|paused|queued` job — paused stays paused; NEVER
+re-enrolls), the periodic sweeper `start_sweeper()` (an asyncio task calling
+`revert_expired_leases(now)` every `job_lease_sweep_s`), and graceful `shutdown()` (cancel tasks,
+await in-flight, stop the pool). New `export/json_export.py::document_to_json` (lossless
+`DocumentResult` dump) + thin public per-page body emitters `render_page_markdown` /
+`render_page_latex_body` (wrap the private `_render_page`, empties filtered). New `jobs/output.py`:
+`write_page_outputs_idempotent` (temp + `os.replace` per fragment + a `manifest.json`, wired into
+`runner._commit_done` BEFORE `mark_done`), `read_manifest`, and the on-demand concat builders
+`build_markdown`/`build_latex`/`build_json` that apply the single document wrap exactly once with
+the empty-fragment filter + honest in-order placeholders for non-committed pages. The runner now
+also persists each page's regions (feeding FTS via the trigger).
+
+**New dependencies:** none. No LICENSES row.
+
+**Tests** (`tests/test_export_fragment_concat.py`, `tests/test_jobs_output.py`,
+`tests/test_jobs_resume.py`; `_doc_sample.py` extended with an EMPTY-body page +
+`build_multipage_document_with_empty`): fragment-concat byte-identity for `md`/`tex`/`json` over a
+FULL set that includes a committed empty-body page (empty-fragment filter, MEDIUM-1); json
+round-trips (`DocumentResult.model_validate_json(out) == doc`, MEDIUM-3); committed-SUBSET mid-job
+concat matches the whole-doc exporter over that subset after stripping the in-order placeholder;
+mid-job json/md placeholder emission for a failed page; idempotent writer (write twice → one final
+file, no stray `.tmp`, same bytes); the full JSON fragment is always written; manifest records
+completed indices in `page_index` order; immediate boot-revert (a TTL-FUTURE lease is `pending` at
+once after `revert_all_leased_for_active_jobs`); kill-mid-job → `recover_on_boot` → resume reaches
+`done` over the full index set with NO lost and NO duplicate-completed pages (at most the one
+in-flight page re-rendered); resume renders ONLY owned indices (a pre-done prefix is never
+re-rendered — MEDIUM-F1, proven with a `render_pdf_page` counter).
+
+**Gate (green on this host):**
+
+```
+$ .venv/Scripts/python.exe -m ruff check .            -> All checks passed!
+$ .venv/Scripts/python.exe -m black --check . --line-length 100  -> all files unchanged
+$ .venv/Scripts/python.exe -m mypy texora_engine      -> Success: no issues found in 66 source files
+$ .venv/Scripts/python.exe -m pytest tests/test_export_fragment_concat.py tests/test_jobs_output.py \
+      tests/test_jobs_resume.py  -> 12 passed
+$ .venv/Scripts/python.exe -m pytest                  -> 195 passed, 12 skipped, 1 xfailed
+```
+
+

@@ -96,6 +96,19 @@ def document_to_latex(doc: DocumentResult, opts: LatexOptions | None = None) -> 
     return "\n".join(parts) + "\n"
 
 
+def render_page_latex_body(page: PageResult, opts: LatexOptions | None = None) -> str:
+    """Render ONE page's blocks to a LaTeX body fragment — body ONLY (design §7.1, M4).
+
+    No preamble, no ``document`` environment: the page's blocks joined with ``"\\n\\n"`` (the same
+    blank-line block separator :func:`document_to_latex` uses), empties filtered. The single
+    document wrap is applied once at concat time so the result is byte-identical to the
+    whole-document exporter.
+    """
+
+    options = opts or LatexOptions()
+    return "\n\n".join(b for b in _render_page(page, options) if b != "")
+
+
 def _render_page(page: PageResult, opts: LatexOptions) -> list[str]:
     blocks: list[str] = []
     contents = page.contents

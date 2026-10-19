@@ -22,11 +22,12 @@ from typing import TYPE_CHECKING
 import pypdfium2 as pdfium
 from PIL import Image
 
-from texora_engine.db import jobs_dao, pages_dao
+from texora_engine.db import jobs_dao, pages_dao, regions_dao
 from texora_engine.ingest.base import IngestError, RenderedPage
 from texora_engine.ingest.images import iter_image_pages
 from texora_engine.ingest.pdf import open_pdf, render_pdf_page
 from texora_engine.jobs.models import JobOptions
+from texora_engine.jobs.output import write_page_outputs_idempotent
 from texora_engine.logging_config import get_logger
 from texora_engine.models.errors import ModelNotReady
 from texora_engine.pipeline import PageResult, PipelineDeps, assemble_page
@@ -334,8 +335,18 @@ def _commit_done(
     token: str,
     result: PageResult,
 ) -> None:
-    """Persist the page result (the idempotent export writer is wired in task 4.3)."""
+    """Commit a page: persist regions (FTS) + write idempotent exports, THEN mark done (§7.2).
 
+    The export fragment write is the commit point and happens BEFORE ``mark_done``, so a page
+    marked ``done`` always has its artifact on disk; a page whose artifact write failed is marked
+    ``failed`` (the exception propagates to the caller's per-page guard), never ``done``.
+    """
+
+    options = _job_options(manager, job_id)
+    _persist_regions(manager, leased, result)
+    write_page_outputs_idempotent(
+        manager.settings, job_id, leased.page_index, result, options.formats
+    )
     pages_dao.mark_done(
         manager.conn,
         leased.id,
@@ -345,6 +356,35 @@ def _commit_done(
         avg_confidence=_avg_confidence(result),
         finished_at=_now_iso(),
     )
+
+
+def _job_options(manager: JobManager, job_id: str) -> JobOptions:
+    job = jobs_dao.get_job(manager.conn, job_id)
+    if job is None:
+        return JobOptions()
+    return JobOptions.model_validate_json(job.options_json)
+
+
+def _persist_regions(manager: JobManager, leased: pages_dao.LeasedPage, result: PageResult) -> None:
+    """Insert the page's regions so the FTS index (filled by the region trigger) is searchable."""
+
+    rows: list[regions_dao.RegionInsert] = []
+    for content in result.contents:
+        rows.append(
+            regions_dao.RegionInsert(
+                id=uuid.uuid4().hex,
+                page_id=leased.id,
+                type=str(content.region.type),
+                bbox_json=content.region.bbox.model_dump_json(),
+                det_confidence=content.region.confidence,
+                reading_order=content.region.reading_order,
+                content=content_text(content),
+                rec_confidence=content.confidence,
+                validation=str(content.status),
+            )
+        )
+    if rows:
+        regions_dao.insert_regions(manager.conn, rows)
 
 
 def _after_page(
