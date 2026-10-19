@@ -107,7 +107,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
   events (ETA, pages/min). `dep:4.2` · `req: R-JOB-3/5` · `done:` control actions verified; WS emits.
 - [x] **4.5 Failure isolation** — per-page timeout + resource guard, retry-failed-only. `dep:4.2` ·
   `req: R-JOB-6, R-SEC-3` · `done:` hostile-page fixture fails page, job completes, retry works.
-- [ ] **4.6 Batch + watch folder** — multi-file/folder intake; auto-process new files. `dep:4.4` ·
+- [x] **4.6 Batch + watch folder** — multi-file/folder intake; auto-process new files. `dep:4.4` ·
   `req: R-JOB-7` · `done:` dropping files/new file in watched dir enqueues jobs.
 - [ ] **4.7 5,000-page proof test** — synthetic generator + memory/resume assertions in CI (nightly).
   `dep:4.3` · `req: R-JOB-1/2` · `done:` CI nightly green; memory bounded; resume correct.

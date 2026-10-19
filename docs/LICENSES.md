@@ -56,6 +56,7 @@ update the row.
 | pandas            | 2.2.2     | PyPI      | BSD-3-Clause  | Yes          | Yes          | Transitive (pix2tex). |
 | scipy             | 1.13.1    | PyPI      | BSD-3-Clause  | Yes          | Yes          | Transitive (albumentations/scikit-image). |
 | PyYAML            | 6.0.3     | PyPI      | MIT           | Yes          | Yes          | Transitive (pix2tex config loader). |
+| watchdog          | 4.0.2     | PyPI      | Apache-2.0    | Yes          | Yes          | **M4.** Cross-platform filesystem events for the watch-folder intake (Windows `ReadDirectoryChangesW`). Shipped; permissive. Used behind a settle/debounce wrapper; all enqueue work marshalled onto the engine loop. |
 
 ## Engine (Python 3.11) — dev / test
 

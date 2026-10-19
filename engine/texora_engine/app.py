@@ -79,6 +79,18 @@ def create_app(settings: Settings) -> FastAPI:
         manager.start_sweeper()
         logger.info("job manager started; recovered orphaned leases")
 
+        if settings.watch_dir is not None:
+            from texora_engine.jobs.watch import start_watch_observer
+
+            try:
+                app.state.watch_observer = start_watch_observer(
+                    manager, settings.watch_dir, asyncio.get_event_loop()
+                )
+            except OSError as exc:
+                logger.warning(
+                    "watch-folder observer failed to start on %s: %s", settings.watch_dir, exc
+                )
+
     @app.on_event("shutdown")
     async def _shutdown() -> None:
         manager = getattr(app.state, "job_manager", None)

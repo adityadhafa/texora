@@ -233,6 +233,42 @@ $ .venv/Scripts/python.exe -m pytest tests/test_jobs_api.py tests/test_jobs_ws.p
 $ .venv/Scripts/python.exe -m pytest                  -> 213 passed, 12 skipped, 1 xfailed
 ```
 
+---
+
+## Task 4.6 — Batch intake + watch folder (watchdog settle/debounce)
+
+**What landed.** `POST /jobs/batch` (already scaffolded in 4.4) accepts `{paths, options,
+recursive}`: dirs expand non-recursively by default (`recursive:true` opt-in) to supported
+extensions via the shared `jobs/paths.py`; each resolved file → its own enqueued job. New
+`jobs/watch.py`: `WatchFolderIngest.process_candidate` (settle → confirm size stable → validate →
+dedupe by resolved path+mtime → enqueue) + `_WatchHandler` (marshals created/moved events onto the
+engine loop via `loop.call_soon_threadsafe` → the loop executor, so the Observer thread never
+touches the DB) + `start_watch_observer`. `app.py` starts the Observer at startup when
+`settings.watch_dir` is set and stops it on shutdown.
+
+**New dependency:** `watchdog==4.0.2` (Apache-2.0, shipped) — added to `engine/requirements.txt`,
+`engine/pyproject.toml` `dependencies` + the mypy override list, and a `docs/LICENSES.md` runtime
+row, ALL in this change. Verified present on PyPI (cp-agnostic `py3-none-win_amd64` wheel, published
+2024-08-11).
+
+**Tests** (`tests/test_jobs_batch.py`, `tests/test_jobs_watch.py`): a folder of two PDFs via
+`POST /jobs/batch` → two jobs; mixed files+dirs → correct count; a bad path → 422; non-recursive by
+default (1 job) vs `recursive:true` (2 jobs); dropping a fully-written PDF through
+`process_candidate` → a job row with the dropped file as its source; same path+mtime de-dupes to one
+enqueue; an unsupported `.txt` is skipped. The settle wrapper is deterministic given a fully-written
+fixture (no live FS race needed).
+
+**Gate (green on this host):**
+
+```
+$ .venv/Scripts/python.exe -m ruff check .            -> All checks passed!
+$ .venv/Scripts/python.exe -m black --check . --line-length 100  -> 121 files unchanged
+$ .venv/Scripts/python.exe -m mypy texora_engine      -> Success: no issues found in 70 source files
+$ .venv/Scripts/python.exe -m pytest tests/test_jobs_batch.py tests/test_jobs_watch.py  -> 7 passed
+$ .venv/Scripts/python.exe -m pytest                  -> 220 passed, 12 skipped, 1 xfailed
+```
+
+
 
 
 

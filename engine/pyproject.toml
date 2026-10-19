@@ -24,6 +24,8 @@ dependencies = [
     "pillow==10.4.0",
     "pylatexenc==2.10",
     "latex2mathml==3.77.0",
+    # Watch-folder intake (M4): cross-platform filesystem events (Apache-2.0, shipped).
+    "watchdog==4.0.2",
 ]
 
 [project.optional-dependencies]
@@ -95,6 +97,7 @@ module = [
     "pytesseract.*",
     "pyclipper.*",
     "shapely.*",
+    "watchdog.*",
 ]
 ignore_missing_imports = true
 
