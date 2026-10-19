@@ -38,6 +38,9 @@ engine/.build/
 *.log
 logs/
 
+# Git worktrees (M4+ feature branches live here)
+.worktrees/
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db
