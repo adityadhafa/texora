@@ -204,6 +204,10 @@ erDiagram
     real avg_confidence
     text error
   }
+  %% M4 erratum (M4-ADR-9): PAGE.status is the LEASE LIFECYCLE
+  %% (pending|leased|done|failed); content quality lives in a separate
+  %% rollup_status column (ok|needs_review|failed). The review surface queries
+  %% rollup_status, never status.
   REGION {
     text id PK
     text page_id FK

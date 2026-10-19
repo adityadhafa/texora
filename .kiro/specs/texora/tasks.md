@@ -93,8 +93,11 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 ## M4 — Job queue, checkpoint/resume, batch + watch folder (5,000-page proof)
 
-- [ ] **4.1 SQLite schema + migrations** — JOB/PAGE/REGION/FORMULA_CANDIDATE/CORRECTION/MODEL/
+- [x] **4.1 SQLite schema + migrations** — JOB/PAGE/REGION/FORMULA_CANDIDATE/CORRECTION/MODEL/
   SETTING + FTS5. `dep:3.6` · `req: R-JOB-2, R-UI-1` · `done:` migration test; FTS query returns.
+  _M4 erratum (M4-ADR-9): PAGE has two orthogonal columns — `status` is the lease lifecycle
+  (`pending|leased|done|failed`), `rollup_status` is content quality (`ok|needs_review|failed`); the
+  review surface queries `rollup_status`._
 - [ ] **4.2 Streaming job runner** — bounded concurrency, back-pressure, per-page lease state
   machine, constant memory. `dep:4.1,3.6` · `req: R-JOB-1/4` · `done:` memory stays flat on large
   synthetic PDF.
