@@ -1,10 +1,27 @@
 # Texora — Build Progress Checkpoint
 
-Last updated: 2026-10-18 (M3 convergence) · Milestone: **M3 (PDF pipeline → MD/LaTeX)** ·
-Branch: `feat/m3-pdf-pipeline` (worktree `.worktrees/m3-pdf-pipeline`). NOT merged into `main`.
-M1 and M2 are complete; M3 tasks 3.1–3.7 are implemented on this branch (engine-side; the headline
-PDF→Markdown/LaTeX flow is runnable + demonstrated). The TeX-compile check is CI-only on hosts
-without a TeX toolchain.
+Last updated: 2026-10-19 (release prep) · State: **v0.1.0 release-ready on `main`** (@ `e968171`).
+
+**Everything below is MERGED to `main`.** M1 (skeleton), M2 (snip formula OCR), M3 (PDF→MD/LaTeX
+pipeline), the M4 job-engine backbone (tasks 4.1–4.7: schema/FTS5, streaming runner, checkpoint/
+resume, job control + WS, failure isolation, batch/watch folder, CI-scaled 5,000-page proof), and
+the headline **Convert PDF → Markdown** desktop UI are all on `main`. M4 task 4.8 (full batch/queue
+UI) was deferred — the single PDF-convert screen supersedes it for v0.1.0.
+
+**Shipping a release:** a tagged GitHub Release workflow (`.github/workflows/release.yml`) builds
+the Windows installer on GitHub's `windows-latest` runner (freeze engine → `tauri build` → publish
+`.msi`/`.exe` to a Release). Cut it with `git tag v0.1.0 && git push origin v0.1.0`. See
+`docs/RELEASE.md`. The release build does NOT depend on this host (local `vcvars64.bat` hangs in
+automation; `cargo check` is green here and the real link/build runs on the GitHub runner).
+
+**Honest v0.1.0 caveats:** formula-recognition *accuracy* is bounded by the provisional pix2tex
+model (the better-model swap is M7); the interactive running-window E2E and the full 5,000-page run
+are host/CI-scaled and documented PENDING, never faked.
+
+---
+### Historical note (pre-merge, now superseded)
+M3 was implemented on `feat/m3-pdf-pipeline` (engine-side; headline PDF→Markdown/LaTeX runnable +
+demonstrated; TeX-compile check CI-only on hosts without a TeX toolchain) and has since merged.
 
 Required engine commands run with the PATH export + the worktree venv
 (`engine/.venv/Scripts/python.exe`), from `engine/`:
