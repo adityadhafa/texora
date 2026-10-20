@@ -1,0 +1,21 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "severity": "LOW",
+      "title": "Rust suite not re-run for iteration 2",
+      "detail": "The serde_json::json! swap in start_job_poll was only cargo fmt --check'd (host per-command time ceiling). Re-run `cargo clippy --all-targets -- -D warnings && cargo build && cargo test` under vcvars64 on an unconstrained host to confirm green. Non-blocking: the edit is a strict subset of the fully-green iteration-1 Rust surface and serde_json is a pre-existing dependency already used in the supervisor tests."
+    },
+    {
+      "severity": "LOW",
+      "title": "start_job_poll has no dedup guard",
+      "detail": "Unlike start_model_poll (which uses begin_download), a job poller is spawned per job_create with no in-flight registry. In the single lean flow this cannot overlap (one job id per Start; the component guards the terminal transition with finishedRef), so it is a latent note only. Consider a guard if batch/multi-job Start is ever added."
+    },
+    {
+      "severity": "LOW",
+      "title": "Running-window E2E PENDING MANUAL",
+      "detail": "The live pick -> Start -> progress -> export -> Copy/Save -> Cancel flow is host-limited and correctly not claimed as passed. The user must verify it in `pnpm tauri dev` with the engine healthy."
+    }
+  ],
+  "reviewDoc": "c:\\data\\kucing\\texora\\.worktrees\\m4-jobs/.agents/tasks/ui-pdf-review.md"
+}
