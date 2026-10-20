@@ -115,6 +115,21 @@ describe('ConvertPdf', () => {
     await waitFor(() => expect(cancelJobMock).toHaveBeenCalledWith('job-1'));
   });
 
+  it('a canceled poll event shows a neutral note, not the error alert', async () => {
+    cancelJobMock.mockResolvedValue(makeJob({ status: 'canceled' }));
+    render(<ConvertPdf onBack={() => {}} />);
+    await pickAndStart();
+    fireEvent.click(screen.getByRole('button', { name: /batalkan/i }));
+    await waitFor(() => expect(cancelJobMock).toHaveBeenCalledWith('job-1'));
+
+    // The engine's terminal 'canceled' status arrives via the poll bridge.
+    emitProgress?.(makeJob({ status: 'canceled' }));
+
+    // Neutral status note, never the red error alert.
+    expect(await screen.findByText(/konversi dibatalkan/i)).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('a terminal done event fetches + shows the markdown with Copy/Save wired', async () => {
     getJobMarkdownMock.mockResolvedValue('# Hello\n\n$$a+b$$\n');
     saveMarkdownMock.mockResolvedValue(true);

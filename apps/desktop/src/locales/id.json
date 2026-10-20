@@ -81,6 +81,7 @@
     "saved": "Tersimpan",
     "needsReview": "{{count}} halaman perlu ditinjau",
     "failedPages": "{{count}} halaman gagal",
+    "canceledNote": "Konversi dibatalkan. Tidak ada Markdown yang dihasilkan.",
     "error": {
       "engineNotReady": "Mesin belum siap. Tunggu sebentar lalu coba lagi.",
       "generic": "Terjadi kesalahan saat konversi.",

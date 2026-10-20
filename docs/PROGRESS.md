@@ -20,10 +20,20 @@ importer); `ConvertPdf.tsx` is one clean screen (pick PDF → Start → live pro
 Markdown panel + Copy/Save), reachable from Home via a `'home'|'convert'` view switch. Picking/
 saving uses the pinned `@tauri-apps/plugin-dialog` 2.8.3 (+ Rust `tauri-plugin-dialog` 2.8.3);
 `@tauri-apps/api` bumped 2.9.0 → 2.12.0 for the peer. All strings are in `id`+`en` at parity.
-Gate green: `pnpm --filter desktop lint`/`test -- --run` (53 passed)/`build`; Rust `cargo fmt
---check`/`clippy -D warnings`/`build`/`test` (15 passed, incl. `terminal_job_status_detection`).
-The running-window E2E is **PENDING MANUAL** (host-limited). Evidence: `docs/m-ui-pdf-verification.md`.
-Progress transport is an honest poll (not the engine WS), reusing the proven model-poll shape.
+Gate green: `pnpm --filter desktop lint`/`test -- --run` (54 passed)/`build`; Rust `cargo fmt
+--check` clean (clippy/build/test last green at iteration 1: 15 passed, incl.
+`terminal_job_status_detection`). The running-window E2E is **PENDING MANUAL** (host-limited).
+Evidence: `docs/m-ui-pdf-verification.md`. Progress transport is an honest poll (not the engine
+WS), reusing the proven model-poll shape.
+
+Review iteration 2 (feat/m4-jobs) fixed the three review findings: Cancel now lands in a distinct
+neutral `canceled` phase (a `role="status"` "Conversion canceled" note, never the red error alert)
+with a new test driving the canceled poll event; `bridgeInvariant` now also guards
+`@tauri-apps/plugin-dialog`; and the Rust engine-unreachable fallback payload is built with
+`serde_json::json!` for correct JSON escaping. Frontend suite green (54 tests). The iteration-2 Rust
+edit is an isolated change inside `start_job_poll`; a cold Tauri compile exceeded this host's
+per-command time ceiling, so clippy/build/test were not re-run this iteration — `cargo fmt --check`
+passed and a re-run on an unconstrained host is noted in the verification doc.
 
 ## M3 feature status (tasks 3.1–3.7)
 

@@ -165,3 +165,100 @@ Steps to verify manually, with the engine healthy (status badge "Ready"):
    hanging.
 
 This checklist is **not** claimed as passed — it is pending manual confirmation by the user.
+
+---
+
+## Iteration 2 — review fixes (commit on feat/m4-jobs)
+
+Addressed the three findings from `.agents/tasks/ui-pdf-review.json`:
+
+- **[MEDIUM] Cancel no longer renders as an error.** `ConvertPdf.tsx` gained a distinct `canceled`
+  terminal phase. `handleTerminal` now routes `job.status === 'canceled'` to a `canceled` dispatch
+  instead of the `failed` branch, so the red `role="alert"` panel never shows for a deliberate
+  cancellation. A neutral `role="status"` note (`convert.canceledNote`) is shown instead, while the
+  status label keeps reading "Canceled". Added `convert.canceledNote` to both `id.json` and
+  `en.json` at parity. New test `a canceled poll event shows a neutral note, not the error alert`
+  drives a `canceled` poll event after Cancel and asserts the neutral note appears and
+  `queryByRole('alert')` is null.
+- **[LOW] bridgeInvariant now guards the dialog plugin.** The invariant regex was widened from
+  `@tauri-apps\/api` to `@tauri-apps\/(api|plugin-dialog)`, so a future component importing the
+  dialog plugin directly (bypassing `engineClient`) trips the test. Current code already compliant.
+- **[LOW] Synthetic failed payload uses `serde_json::json!`.** In `supervisor.rs::start_job_poll`,
+  the engine-unreachable fallback payload is now built with `serde_json::json!({...}).to_string()`
+  instead of hand-formatting with quote-replacement, so any backslash/control char in the error
+  message is always escaped into valid JSON.
+
+### Commands + real output (iteration 2)
+
+**Frontend — all green:**
+
+`pnpm install`
+
+```
+Scope: all 2 workspace projects
+Lockfile is up to date, resolution step is skipped
+Already up to date
+Done in 3s using pnpm v9.15.9
+```
+
+`pnpm --filter desktop lint`
+
+```
+> desktop@0.1.0 lint C:\data\kucing\texora\.worktrees\m4-jobs\apps\desktop
+> eslint .
+(exit 0, no findings)
+```
+
+`pnpm --filter desktop test -- --run`
+
+```
+ ✓ src/App.test.tsx (2 tests) 225ms
+ ✓ src/ConvertPdf.test.tsx (9 tests) 684ms
+ ✓ src/SnipPopup.test.tsx (6 tests) 343ms
+ Test Files  9 passed (9)
+      Tests  54 passed (54)
+   Duration  4.74s
+(exit 0)
+```
+
+(ConvertPdf is now 9 tests, up from 8 — the new canceled-state test. Total 54, up from 53.)
+
+`pnpm --filter desktop build`
+
+```
+dist/assets/index-eZNcLXBN.css   39.74 kB │ gzip:  10.89 kB
+dist/assets/index-BbAH0txC.js   482.21 kB │ gzip: 147.66 kB │ map: 1,604.28 kB
+✓ built in 3.75s
+(exit 0 — tsc + vite build)
+```
+
+**Rust:**
+
+`cargo fmt --check`
+
+```
+(exit 0 — clean)
+```
+
+`cargo clippy --all-targets -- -D warnings` / `cargo build` / `cargo test` — **NOT RE-RUN THIS
+ITERATION (host time limit).** A cold Tauri compile exceeded this host's maximum per-command time
+ceiling (~29 min) on every attempt without producing output, so the clippy/build/test suites could
+not be re-run for the iteration-2 edit. What was verified:
+
+- `cargo fmt --check` passed clean (exit 0).
+- The only Rust change is an isolated edit inside the existing `start_job_poll` function: replacing
+  a hand-built JSON string with `serde_json::json!({ "id": job_id, "status": "failed", "error":
+  err.message }).to_string()`. `serde_json` is already a direct dependency of the crate (used in the
+  `supervisor.rs` tests, e.g. `serde_json::to_string(&status)`), and both `job_id` and `err.message`
+  are `String` values valid as serde JSON values. No new dependency, no signature change, no new
+  public item.
+
+The iteration-1 Rust evidence above (clippy clean, build OK, 15 tests passing incl.
+`terminal_job_status_detection`) remains the last recorded green Rust run; this iteration's Rust
+change is a strict subset of that surface. **The reviewer / user should re-run the Rust suite
+(`cargo clippy --all-targets -- -D warnings && cargo test` under vcvars64) to confirm on a host
+without the time ceiling.**
+
+The running-window E2E remains **PENDING MANUAL** (unchanged from iteration 1); add a mid-run
+**Cancel** check to the checklist and confirm the screen shows a neutral "Conversion canceled" note
+with no red error alert.

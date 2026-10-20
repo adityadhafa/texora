@@ -22,7 +22,7 @@ import {
  * needs-review pages are surfaced from the engine's own counts, never hidden or fabricated.
  */
 
-type Phase = 'idle' | 'selected' | 'running' | 'done' | 'failed';
+type Phase = 'idle' | 'selected' | 'running' | 'done' | 'failed' | 'canceled';
 
 interface State {
   phase: Phase;
@@ -41,6 +41,7 @@ type Action =
   | { type: 'start'; jobId: string; job: JobView }
   | { type: 'progress'; job: JobView }
   | { type: 'exported'; markdown: string }
+  | { type: 'canceled'; job: JobView }
   | { type: 'failed'; errorKey: string; job?: JobView }
   | { type: 'copied' }
   | { type: 'saved' }
@@ -73,6 +74,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, job: action.job };
     case 'exported':
       return { ...state, phase: 'done', markdown: action.markdown };
+    case 'canceled':
+      return { ...state, phase: 'canceled', job: action.job, errorKey: null };
     case 'failed':
       return { ...state, phase: 'failed', errorKey: action.errorKey, job: action.job ?? state.job };
     case 'copied':
@@ -143,6 +146,9 @@ export default function ConvertPdf({ onBack }: ConvertPdfProps): React.JSX.Eleme
         } catch {
           dispatch({ type: 'failed', errorKey: 'convert.error.export', job });
         }
+      } else if (job.status === 'canceled') {
+        // Cancellation is a deliberate user action, not an error.
+        dispatch({ type: 'canceled', job });
       } else {
         dispatch({ type: 'failed', errorKey: 'convert.error.generic', job });
       }
@@ -246,7 +252,7 @@ export default function ConvertPdf({ onBack }: ConvertPdfProps): React.JSX.Eleme
               {t('convert.cancel')}
             </button>
           ) : null}
-          {(state.phase === 'done' || state.phase === 'failed') && (
+          {(state.phase === 'done' || state.phase === 'failed' || state.phase === 'canceled') && (
             <button type="button" onClick={() => dispatch({ type: 'reset' })} className={buttonClass}>
               {t('convert.open')}
             </button>
@@ -255,7 +261,10 @@ export default function ConvertPdf({ onBack }: ConvertPdfProps): React.JSX.Eleme
       </section>
 
       {/* Progress */}
-      {state.phase === 'running' || state.phase === 'done' || state.phase === 'failed' ? (
+      {state.phase === 'running' ||
+      state.phase === 'done' ||
+      state.phase === 'failed' ||
+      state.phase === 'canceled' ? (
         <section className="flex flex-col gap-2 rounded-lg border border-muted/40 bg-surface p-4">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium" aria-live="polite">
@@ -308,6 +317,13 @@ export default function ConvertPdf({ onBack }: ConvertPdfProps): React.JSX.Eleme
         <p className="rounded-lg bg-red-600/10 p-3 text-sm text-red-400" role="alert">
           {state.errorKey ? t(state.errorKey) : t('convert.error.generic')}
           {state.job?.error ? ` (${state.job.error})` : ''}
+        </p>
+      ) : null}
+
+      {/* Canceled — a deliberate user action, shown neutrally (not an error). */}
+      {state.phase === 'canceled' ? (
+        <p className="rounded-lg bg-muted/10 p-3 text-sm text-muted" role="status">
+          {t('convert.canceledNote')}
         </p>
       ) : null}
 

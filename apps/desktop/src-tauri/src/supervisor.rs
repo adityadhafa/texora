@@ -634,11 +634,14 @@ pub fn start_job_poll<R: Runtime>(app: AppHandle<R>, job_id: String) {
                 }
                 Err(err) => {
                     // Engine unreachable mid-job: surface a failed payload and stop so the UI
-                    // never hangs on a dead poll.
-                    let payload = format!(
-                        "{{\"id\":\"{job_id}\",\"status\":\"failed\",\"error\":\"{}\"}}",
-                        err.message.replace('"', "'")
-                    );
+                    // never hangs on a dead poll. Build with serde_json so the error message is
+                    // always escaped into valid JSON (backslashes, control chars, quotes).
+                    let payload = serde_json::json!({
+                        "id": job_id,
+                        "status": "failed",
+                        "error": err.message,
+                    })
+                    .to_string();
                     let _ = app.emit(JOB_PROGRESS_EVENT, payload);
                     break;
                 }

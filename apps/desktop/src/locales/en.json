@@ -81,6 +81,7 @@
     "saved": "Saved",
     "needsReview": "{{count}} page(s) need review",
     "failedPages": "{{count}} page(s) failed",
+    "canceledNote": "Conversion canceled. No Markdown was produced.",
     "error": {
       "engineNotReady": "The engine is not ready yet. Wait a moment and try again.",
       "generic": "Something went wrong during conversion.",

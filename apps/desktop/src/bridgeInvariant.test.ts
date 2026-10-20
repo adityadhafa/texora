@@ -33,11 +33,11 @@ function productionSources(dir: string): string[] {
 describe('engine bridge invariant', () => {
   const files = productionSources(SRC_DIR);
 
-  it('only engineClient.ts imports invoke/listen from @tauri-apps/api', () => {
+  it('only engineClient.ts imports the Tauri bridge (@tauri-apps/api or plugin-dialog)', () => {
     const offenders = files.filter((f) => {
       if (f.endsWith('engineClient.ts')) return false;
       const text = readFileSync(f, 'utf-8');
-      return /from '@tauri-apps\/api/.test(text);
+      return /from '@tauri-apps\/(api|plugin-dialog)/.test(text);
     });
     expect(offenders, `files importing the Tauri bridge directly: ${offenders.join(', ')}`).toEqual(
       [],
