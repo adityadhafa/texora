@@ -96,7 +96,7 @@ update the row.
 | @types/react             | 18.3.12 | npm       | MIT                | Yes          | Yes          | React type definitions. Dev-only. |
 | @types/react-dom         | 18.3.1  | npm       | MIT                | Yes          | Yes          | React DOM type definitions. Dev-only. |
 | @types/node              | 22.12.0 | npm       | MIT                | Yes          | Yes          | Node type definitions for `tsconfig.node.json`. Dev-only. |
-| @tauri-apps/api          | 2.9.0   | npm       | Apache-2.0 OR MIT  | Yes          | Yes          | Typed JS bridge to Tauri commands/events. |
+| @tauri-apps/api          | 2.12.0  | npm       | Apache-2.0 OR MIT  | Yes          | Yes          | Typed JS bridge to Tauri commands/events. Bumped 2.9.0 → 2.12.0 so `@tauri-apps/plugin-dialog@2.8.3` resolves its `^2.12.0` peer cleanly (compatible with the pinned `tauri@2.12.4` crate). |
 | @tauri-apps/cli          | 2.12.0  | npm       | Apache-2.0 OR MIT  | Yes          | Yes          | Tauri CLI, invoked as `pnpm tauri`. Dev-only. |
 | vite                     | 7.0.0   | npm       | MIT                | Yes          | Yes          | Dev server + bundler. Dev-only. |
 | @vitejs/plugin-react     | 4.7.0   | npm       | MIT                | Yes          | Yes          | React plugin for Vite. Dev-only. |
@@ -117,6 +117,7 @@ update the row.
 | pnpm                     | 9.15.9  | npm       | MIT                | Yes          | Yes          | Package manager, pinned via `packageManager`. |
 | @tauri-apps/plugin-shell | 2.5.0   | npm       | Apache-2.0 OR MIT  | Yes          | Yes          | JS side of the Tauri shell plugin, paired with the Rust `tauri-plugin-shell`. |
 | @tauri-apps/plugin-global-shortcut | 2.3.0 | npm | Apache-2.0 OR MIT | Yes      | Yes          | JS side of the global-shortcut plugin (Ctrl+Shift+M snip hotkey), paired with the Rust `tauri-plugin-global-shortcut`. |
+| @tauri-apps/plugin-dialog | 2.8.3  | npm       | Apache-2.0 OR MIT  | Yes          | Yes          | JS side of the Tauri dialog plugin — native open-PDF + save-.md dialogs for the Convert PDF screen, paired with the Rust `tauri-plugin-dialog`. |
 | katex                    | 0.16.11 | npm       | MIT                | Yes          | Yes          | Math render in the snip popup (authoritative KaTeX render) + the generator input for the engine's supported-macro allow-list. |
 | @types/katex             | 0.16.7  | npm       | MIT                | Yes          | Yes          | KaTeX type definitions for strict TS. Dev-only. |
 | i18next                  | 26.4.7  | npm       | MIT                | Yes          | Yes          | Internationalization core (`id` default + `en`). |
@@ -136,6 +137,7 @@ update the row.
 | base64      | 0.22.1  | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Base64-encode the captured snip PNG before it crosses to the webview / engine (`snip.rs`). |
 | tauri-plugin-shell | 2.5.0 | crates.io | MIT OR Apache-2.0 | Yes       | Yes          | Official Tauri sidecar/process spawn (handles externalBin `-$TARGET_TRIPLE` resolution). |
 | tauri-plugin-global-shortcut | 2.4.1 | crates.io | MIT OR Apache-2.0 | Yes | Yes     | Rust side of the global-shortcut plugin; registers the Ctrl+Shift+M snip hotkey. Resolved to 2.4.1 (latest 2.x) from the `2.3.0` floor matching the JS plugin line. |
+| tauri-plugin-dialog | 2.8.3 | crates.io | MIT OR Apache-2.0 | Yes          | Yes          | Rust side of the dialog plugin; native open-PDF + save-.md dialogs for the Convert PDF screen. Pulls transitive `rfd` 0.16.0 (MIT) for the native file dialogs. |
 | xcap        | 0.9.8   | crates.io | Apache-2.0         | Yes          | Yes          | Cross-platform monitor capture for the snip region grab (Windows/macOS/Linux). |
 | image       | 0.25.10 | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Transitive (xcap) — PNG encode of the captured region. |
 | global-hotkey | 0.8.0 | crates.io | MIT OR Apache-2.0  | Yes          | Yes          | Transitive (tauri-plugin-global-shortcut) — OS hotkey registration. |

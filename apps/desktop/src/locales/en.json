@@ -47,5 +47,44 @@
     "deviceCpu": "CPU",
     "deviceCuda": "CUDA (NVIDIA GPU)",
     "deviceMps": "MPS (Apple GPU)"
+  },
+  "home": {
+    "convert": "Convert PDF to Markdown"
+  },
+  "convert": {
+    "title": "Convert PDF to Markdown",
+    "intro": "Pick a PDF and convert it to Markdown locally. Nothing leaves your machine.",
+    "back": "Back",
+    "open": "Choose PDF",
+    "chooseDifferent": "Choose a different PDF",
+    "start": "Start conversion",
+    "cancel": "Cancel",
+    "noFile": "No PDF selected yet.",
+    "selectedFile": "Selected file",
+    "pageProgress": "Page {{done}} of {{total}}",
+    "pagesPerMin": "{{rate}} pages/min",
+    "eta": "about {{seconds}}s left",
+    "status": {
+      "queued": "Queued",
+      "running": "Converting",
+      "paused": "Paused",
+      "done": "Done",
+      "failed": "Failed",
+      "canceled": "Canceled"
+    },
+    "result": {
+      "title": "Markdown"
+    },
+    "copyMarkdown": "Copy Markdown",
+    "copied": "Copied",
+    "saveMd": "Save .md",
+    "saved": "Saved",
+    "needsReview": "{{count}} page(s) need review",
+    "failedPages": "{{count}} page(s) failed",
+    "error": {
+      "engineNotReady": "The engine is not ready yet. Wait a moment and try again.",
+      "generic": "Something went wrong during conversion.",
+      "export": "The conversion finished but the Markdown could not be loaded."
+    }
   }
 }

@@ -47,5 +47,44 @@
     "deviceCpu": "CPU",
     "deviceCuda": "CUDA (GPU NVIDIA)",
     "deviceMps": "MPS (GPU Apple)"
+  },
+  "home": {
+    "convert": "Ubah PDF ke Markdown"
+  },
+  "convert": {
+    "title": "Ubah PDF ke Markdown",
+    "intro": "Pilih PDF dan ubah ke Markdown secara lokal. Tidak ada data yang keluar dari perangkat Anda.",
+    "back": "Kembali",
+    "open": "Pilih PDF",
+    "chooseDifferent": "Pilih PDF lain",
+    "start": "Mulai konversi",
+    "cancel": "Batalkan",
+    "noFile": "Belum ada PDF yang dipilih.",
+    "selectedFile": "Berkas terpilih",
+    "pageProgress": "Halaman {{done}} dari {{total}}",
+    "pagesPerMin": "{{rate}} halaman/menit",
+    "eta": "sekitar {{seconds}} detik lagi",
+    "status": {
+      "queued": "Dalam antrean",
+      "running": "Mengonversi",
+      "paused": "Dijeda",
+      "done": "Selesai",
+      "failed": "Gagal",
+      "canceled": "Dibatalkan"
+    },
+    "result": {
+      "title": "Markdown"
+    },
+    "copyMarkdown": "Salin Markdown",
+    "copied": "Tersalin",
+    "saveMd": "Simpan .md",
+    "saved": "Tersimpan",
+    "needsReview": "{{count}} halaman perlu ditinjau",
+    "failedPages": "{{count}} halaman gagal",
+    "error": {
+      "engineNotReady": "Mesin belum siap. Tunggu sebentar lalu coba lagi.",
+      "generic": "Terjadi kesalahan saat konversi.",
+      "export": "Konversi selesai tetapi Markdown tidak dapat dimuat."
+    }
   }
 }

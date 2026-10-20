@@ -8,6 +8,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog';
 
 /** Lifecycle state reported by the Rust supervisor (`EngineState`). */
 export type EngineState = 'starting' | 'healthy' | 'unhealthy' | 'restarting' | 'stopped';
@@ -192,4 +193,207 @@ export function subscribeModelProgress(
   return listen<string>(MODEL_PROGRESS_EVENT, (event) => {
     callback(parseModelProgress(event.payload));
   });
+}
+
+// --- PDF → Markdown jobs ---------------------------------------------------------------------
+
+/** Job lifecycle status — mirrors the engine's active + terminal job statuses exactly. */
+export type JobStatus = 'queued' | 'running' | 'paused' | 'done' | 'failed' | 'canceled';
+
+/** Per-job options — mirrors the engine `JobOptions` (camelCase here, snake_case on the wire). */
+export interface JobOptions {
+  formats: string[];
+  dpi?: number;
+  pageStart?: number;
+  pageEnd?: number;
+  pages?: number[];
+}
+
+/** Live job progress — mirrors the engine `JobProgress`. */
+export interface JobProgress {
+  total: number;
+  pending: number;
+  leased: number;
+  done: number;
+  failed: number;
+  needsReview: number;
+  pagesPerMin: number | null;
+  etaSeconds: number | null;
+}
+
+/** A job row + its live progress — mirrors the engine `JobView`. */
+export interface JobView {
+  id: string;
+  sourceName: string;
+  sourcePath: string;
+  status: JobStatus;
+  totalPages: number;
+  priority: number;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+  progress: JobProgress;
+}
+
+/** Tauri job command names. */
+const JOB_CREATE_COMMAND = 'job_create';
+const JOB_GET_COMMAND = 'job_get';
+const JOB_CANCEL_COMMAND = 'job_cancel';
+const JOB_EXPORT_COMMAND = 'job_export';
+const SAVE_TEXT_COMMAND = 'save_text';
+
+/** Tauri job event name (the Rust supervisor polls `GET /jobs/{id}` and emits this). */
+const JOB_PROGRESS_EVENT = 'engine://job-progress';
+
+interface RawJobProgress {
+  total: number;
+  pending: number;
+  leased: number;
+  done: number;
+  failed: number;
+  needs_review: number;
+  pages_per_min: number | null;
+  eta_seconds: number | null;
+}
+
+interface RawJobView {
+  id: string;
+  source_name?: string;
+  source_path?: string;
+  status: JobStatus;
+  total_pages?: number;
+  priority?: number;
+  error?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  progress?: RawJobProgress;
+}
+
+function emptyProgress(): JobProgress {
+  return {
+    total: 0,
+    pending: 0,
+    leased: 0,
+    done: 0,
+    failed: 0,
+    needsReview: 0,
+    pagesPerMin: null,
+    etaSeconds: null,
+  };
+}
+
+function parseJobProgress(raw: RawJobProgress | undefined): JobProgress {
+  if (!raw) return emptyProgress();
+  return {
+    total: raw.total,
+    pending: raw.pending,
+    leased: raw.leased,
+    done: raw.done,
+    failed: raw.failed,
+    needsReview: raw.needs_review,
+    pagesPerMin: raw.pages_per_min,
+    etaSeconds: raw.eta_seconds,
+  };
+}
+
+/**
+ * Parse a `JobView` JSON string from Rust into the camelCase TS mirror. Progress-poll error
+ * payloads emitted by the Rust bridge are a minimal `{ id, status, error }` object; the
+ * optional-field handling below keeps those honest (failed status, zeroed progress).
+ */
+export function parseJobView(json: string): JobView {
+  const raw = JSON.parse(json) as RawJobView;
+  return {
+    id: raw.id,
+    sourceName: raw.source_name ?? '',
+    sourcePath: raw.source_path ?? '',
+    status: raw.status,
+    totalPages: raw.total_pages ?? 0,
+    priority: raw.priority ?? 0,
+    error: raw.error ?? null,
+    createdAt: raw.created_at ?? '',
+    updatedAt: raw.updated_at ?? '',
+    progress: parseJobProgress(raw.progress),
+  };
+}
+
+/** Serialize the camelCase `JobOptions` into the engine's snake_case body. */
+function toEngineOptions(options: JobOptions): Record<string, unknown> {
+  const body: Record<string, unknown> = { formats: options.formats };
+  if (options.dpi !== undefined) body.dpi = options.dpi;
+  if (options.pageStart !== undefined) body.page_start = options.pageStart;
+  if (options.pageEnd !== undefined) body.page_end = options.pageEnd;
+  if (options.pages !== undefined) body.pages = options.pages;
+  return body;
+}
+
+/**
+ * Create a PDF→Markdown conversion job for an absolute file path. Rust starts the progress
+ * poller; subscribe via `subscribeJobEvents` to drive the UI.
+ */
+export async function createJob(
+  path: string,
+  options: JobOptions = { formats: ['md'] },
+  priority = 0,
+): Promise<JobView> {
+  const json = await invoke<string>(JOB_CREATE_COMMAND, {
+    path,
+    optionsJson: JSON.stringify(toEngineOptions(options)),
+    priority,
+  });
+  return parseJobView(json);
+}
+
+/** Fetch a job's current state once. */
+export async function getJob(id: string): Promise<JobView> {
+  const json = await invoke<string>(JOB_GET_COMMAND, { id });
+  return parseJobView(json);
+}
+
+/** Request cancellation of an active job; returns the updated view. */
+export async function cancelJob(id: string): Promise<JobView> {
+  const json = await invoke<string>(JOB_CANCEL_COMMAND, { id });
+  return parseJobView(json);
+}
+
+/** Fetch the exported Markdown body for a completed job. */
+export function getJobMarkdown(id: string): Promise<string> {
+  return invoke<string>(JOB_EXPORT_COMMAND, { id, format: 'md' });
+}
+
+/**
+ * Subscribe to job-progress events. The Rust supervisor polls `GET /jobs/{id}` and emits the
+ * raw `JobView` JSON on `engine://job-progress`; parse it into the typed mirror for callers.
+ */
+export function subscribeJobEvents(callback: (job: JobView) => void): Promise<UnlistenFn> {
+  return listen<string>(JOB_PROGRESS_EVENT, (event) => {
+    callback(parseJobView(event.payload));
+  });
+}
+
+// --- native file dialogs (open PDF / save Markdown) -----------------------------------------
+
+/** Open a native file picker for a single PDF; returns the absolute path, or null if canceled. */
+export async function pickPdf(): Promise<string | null> {
+  const selected = await openDialog({
+    multiple: false,
+    directory: false,
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+  });
+  if (typeof selected === 'string') return selected;
+  return null;
+}
+
+/**
+ * Open a native save dialog for a `.md` file and write `contents` to the chosen path.
+ * Returns true if saved, false if the user canceled the dialog.
+ */
+export async function saveMarkdown(defaultName: string, contents: string): Promise<boolean> {
+  const target = await saveDialog({
+    defaultPath: defaultName,
+    filters: [{ name: 'Markdown', extensions: ['md'] }],
+  });
+  if (typeof target !== 'string') return false;
+  await invoke(SAVE_TEXT_COMMAND, { path: target, contents });
+  return true;
 }

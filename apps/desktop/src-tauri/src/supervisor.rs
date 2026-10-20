@@ -193,6 +193,15 @@ impl ProxyError {
             message,
         }
     }
+
+    /// Build a proxy error with an explicit kind + message (used by command wrappers for
+    /// local validation/IO failures that never reach the engine).
+    pub fn from_message(kind: &str, message: String) -> Self {
+        Self {
+            kind: kind.to_string(),
+            message,
+        }
+    }
 }
 
 /// Build the base URL for the live engine port, or an error if not ready.
@@ -591,6 +600,54 @@ pub fn start_model_poll<R: Runtime>(app: AppHandle<R>, id: String) {
     });
 }
 
+/// Event name for job-progress updates (PDF → Markdown convert screen).
+pub const JOB_PROGRESS_EVENT: &str = "engine://job-progress";
+
+/// Interval between `GET /jobs/{id}` polls while a job is active.
+const JOB_POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+/// Terminal job statuses that stop the poller. Mirrors
+/// `jobs_dao.TERMINAL_JOB_STATUSES = ("done", "failed", "canceled")`.
+fn is_terminal_job_status(json: &str) -> bool {
+    // Cheap substring check on the serialized status; the engine owns the vocabulary.
+    json.contains("\"status\":\"done\"")
+        || json.contains("\"status\":\"failed\"")
+        || json.contains("\"status\":\"canceled\"")
+}
+
+/// Start polling `GET /jobs/{id}` every 500 ms, emitting `engine://job-progress` with the raw
+/// `JobView` JSON, until a terminal status is observed (done/failed/canceled) or the engine
+/// becomes unreachable (surfaced as a synthetic `failed` payload so the UI never hangs).
+pub fn start_job_poll<R: Runtime>(app: AppHandle<R>, job_id: String) {
+    tauri::async_runtime::spawn(async move {
+        loop {
+            let poll = {
+                let st = app.state::<SupervisorState>();
+                engine_request(&st, "GET", &format!("/jobs/{job_id}"), None)
+            };
+            match poll {
+                Ok(body) => {
+                    let _ = app.emit(JOB_PROGRESS_EVENT, body.clone());
+                    if is_terminal_job_status(&body) {
+                        break;
+                    }
+                }
+                Err(err) => {
+                    // Engine unreachable mid-job: surface a failed payload and stop so the UI
+                    // never hangs on a dead poll.
+                    let payload = format!(
+                        "{{\"id\":\"{job_id}\",\"status\":\"failed\",\"error\":\"{}\"}}",
+                        err.message.replace('"', "'")
+                    );
+                    let _ = app.emit(JOB_PROGRESS_EVENT, payload);
+                    break;
+                }
+            }
+            tokio::time::sleep(JOB_POLL_INTERVAL).await;
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -745,6 +802,28 @@ mod tests {
         assert!(is_terminal_model_state("{\"state\":\"error\"}"));
         assert!(!is_terminal_model_state("{\"state\":\"downloading\"}"));
         assert!(!is_terminal_model_state("{\"state\":\"verifying\"}"));
+    }
+
+    #[test]
+    fn terminal_job_status_detection() {
+        assert!(is_terminal_job_status(
+            "{\"id\":\"j1\",\"status\":\"done\"}"
+        ));
+        assert!(is_terminal_job_status(
+            "{\"id\":\"j1\",\"status\":\"failed\"}"
+        ));
+        assert!(is_terminal_job_status(
+            "{\"id\":\"j1\",\"status\":\"canceled\"}"
+        ));
+        assert!(!is_terminal_job_status(
+            "{\"id\":\"j1\",\"status\":\"queued\"}"
+        ));
+        assert!(!is_terminal_job_status(
+            "{\"id\":\"j1\",\"status\":\"running\"}"
+        ));
+        assert!(!is_terminal_job_status(
+            "{\"id\":\"j1\",\"status\":\"paused\"}"
+        ));
     }
 
     #[test]

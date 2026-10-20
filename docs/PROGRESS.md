@@ -10,6 +10,21 @@ Required engine commands run with the PATH export + the worktree venv
 (`engine/.venv/Scripts/python.exe`), from `engine/`:
 `export PATH="$HOME/.cargo/bin:$LOCALAPPDATA/Programs/Python/Python311:$LOCALAPPDATA/Programs/Python/Python311/Scripts:...:$PATH"`.
 
+## PDF → Markdown UI (feat/m4-jobs)
+The headline **Convert PDF → Markdown** desktop screen was added on `feat/m4-jobs` (worktree
+`.worktrees/m4-jobs`), wiring the UI end-to-end to the existing engine job API. Rust gained four
+thin proxy commands (`job_create`/`job_get`/`job_cancel`/`job_export`) + a `save_text` write + an
+`engine://job-progress` poll bridge (`GET /jobs/{id}` every 500 ms, mirroring the model-download
+poll); `engineClient.ts` gained the typed job + dialog wrappers (sole `invoke`/`listen`/dialog
+importer); `ConvertPdf.tsx` is one clean screen (pick PDF → Start → live progress + Cancel → raw
+Markdown panel + Copy/Save), reachable from Home via a `'home'|'convert'` view switch. Picking/
+saving uses the pinned `@tauri-apps/plugin-dialog` 2.8.3 (+ Rust `tauri-plugin-dialog` 2.8.3);
+`@tauri-apps/api` bumped 2.9.0 → 2.12.0 for the peer. All strings are in `id`+`en` at parity.
+Gate green: `pnpm --filter desktop lint`/`test -- --run` (53 passed)/`build`; Rust `cargo fmt
+--check`/`clippy -D warnings`/`build`/`test` (15 passed, incl. `terminal_job_status_detection`).
+The running-window E2E is **PENDING MANUAL** (host-limited). Evidence: `docs/m-ui-pdf-verification.md`.
+Progress transport is an honest poll (not the engine WS), reusing the proven model-poll shape.
+
 ## M3 feature status (tasks 3.1–3.7)
 
 | Feature | Tasks | Status | Notes |
